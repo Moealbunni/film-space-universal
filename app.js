@@ -28080,6 +28080,10 @@ document.querySelector("#record").onclick = () => {
     recorder.stop();
     return;
   }
+  if (!document.querySelector("#phoneMonitor").hidden) {
+    status("Phone monitor is open. Record on iPhone, or return to the desktop editor to record the Windows scene.");
+    return;
+  }
   if (!canvas.captureStream || !window.MediaRecorder) {
     status("Video recording unavailable here; use your device screen recorder");
     return;
@@ -28280,6 +28284,114 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+var $link = (id) => document.querySelector("#" + id);
+var lastPhoneFrame = 0;
+for (const b of document.querySelectorAll("[data-speed]")) b.onclick = () => {
+  $link("speed").value = b.dataset.speed;
+  $link("sensitivity").value = b.dataset.speed === "0.25" ? "0.35" : "0.7";
+  status(b.textContent + " camera speed");
+};
+$link("cameraShortcut").onclick = () => {
+  $link("cameraPanel").open = true;
+  $link("cameraPanel").scrollIntoView({ block: "start", behavior: "smooth" });
+};
+$link("showPhone").onclick = () => {
+  $link("phoneMonitor").hidden = false;
+};
+$link("hidePhone").onclick = () => {
+  $link("phoneMonitor").hidden = true;
+};
+function linkScene() {
+  return { format: "film-space-link-v1", floorSize: Number($link("floorSize").value), lens: Number($link("lens").value), objects: people.map((p) => {
+    const e = new Euler().setFromQuaternion(p.quaternion, "YXZ");
+    return { type: p.userData.type, name: p.name, color: "#" + p.userData.clothing.color.getHexString(), position: p.position.toArray(), rotation: [e.x, e.y, e.z], scale: p.scale.toArray() };
+  }) };
+}
+function receiveLinkScene(data) {
+  if (recorder) throw Error("Stop desktop recording before replacing the scene.");
+  const saved = sceneData();
+  saved.objects = data.objects;
+  saved.floorSize = data.floorSize;
+  saved.lens = data.lens;
+  saved.objects = saved.objects.map((o) => {
+    const q = new Quaternion().setFromEuler(new Euler(...o.rotation, "YXZ"));
+    const e = new Euler().setFromQuaternion(q, "XYZ");
+    return { ...o, rotation: [e.x, e.y, e.z], locks: {} };
+  });
+  restoreScene(saved);
+}
+$link("startLink").onclick = async () => {
+  try {
+    if (!window.filmLink) throw Error("Use the packaged desktop app for Wi-Fi pairing.");
+    const info = await window.filmLink.start();
+    if (!info.links.length) {
+      await window.filmLink.stop();
+      throw Error("No private network address found. Connect Windows to Wi-Fi.");
+    }
+    const address = $link("linkAddress");
+    address.replaceChildren(...info.addresses.map((ip, i) => new Option(ip, String(i))));
+    address.hidden = info.links.length < 2;
+    const show = () => {
+      const i = Number(address.value) || 0;
+      $link("pairQr").src = info.qr[i];
+      $link("pairQr").hidden = false;
+      $link("pairText").value = info.links[i];
+      $link("pairText").hidden = false;
+    };
+    address.onchange = show;
+    show();
+    await window.filmLink.prepare(linkScene());
+    $link("stopLink").disabled = false;
+    $link("startLink").disabled = true;
+    $link("linkStatus").textContent = "Ready to pair. Allow this app on Private networks if Windows asks.";
+  } catch (e) {
+    $link("linkStatus").textContent = e.message;
+  }
+};
+$link("stopLink").onclick = async () => {
+  await window.filmLink?.stop();
+  $link("startLink").disabled = false;
+  $link("stopLink").disabled = true;
+  $link("pairQr").hidden = true;
+  $link("pairText").hidden = true;
+  $link("linkAddress").hidden = true;
+  $link("phoneMonitor").hidden = true;
+  $link("phoneImage").removeAttribute("src");
+  $link("linkStatus").textContent = "Sharing stopped; previous QR is invalid.";
+};
+$link("preparePhone").onclick = async () => {
+  try {
+    if (!window.filmLink) throw Error("Open the desktop app.");
+    await window.filmLink.prepare(linkScene());
+    $link("linkStatus").textContent = "Scene ready. On iPhone tap Load desktop scene.";
+  } catch (e) {
+    $link("linkStatus").textContent = e.message;
+  }
+};
+$link("receivePhone").onclick = async () => {
+  try {
+    const data = await window.filmLink?.receive();
+    if (!data) throw Error("On iPhone tap Send scene to desktop first.");
+    receiveLinkScene(data);
+    $link("linkStatus").textContent = "Phone scene loaded in desktop editor.";
+  } catch (e) {
+    $link("linkStatus").textContent = e.message;
+  }
+};
+window.filmLink?.onEvent((type, data) => {
+  if (type === "frame") {
+    lastPhoneFrame = performance.now();
+    $link("phoneImage").src = data.image;
+    $link("monitorStatus").textContent = data.recording ? "\u25CF iPhone is recording" : "iPhone live camera";
+  }
+  if (type === "status") {
+    if (!$link("stopLink").disabled) $link("linkStatus").textContent = data.connected ? "iPhone connected on local Wi-Fi" : "Waiting for iPhone. Check same Wi-Fi and Private-network firewall access.";
+  }
+  if (type === "scene-ready") $link("linkStatus").textContent = "Phone sent a scene. Tap Load received phone scene to replace the desktop scene.";
+});
+setInterval(() => {
+  if (performance.now() - lastPhoneFrame > 3e3) $link("monitorStatus").textContent = "Preview paused \u2014 open Camera mode on the connected iPhone";
+}, 1e3);
 /*! Bundled license information:
 
 three/build/three.core.js:
