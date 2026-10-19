@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Film Space Desktop</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="stage" aria-label="3D virtual studio"></canvas>
+  <div id="hud">
+    <header><h1>Film Space <span>Desktop</span></h1><div id="status">Edit mode</div></header>
+    <aside id="tools">
+      <div class="group"><button id="mode">Camera mode</button><button id="add">Add person</button><button id="remove">Delete selected</button><button id="rotate">Rotate selected</button></div>
+      <div class="group"><label>Lens <select id="lens"><option>35</option><option>50</option><option>75</option><option>200</option></select> mm</label><button id="heightDown">Lower</button><button id="heightUp">Raise</button></div>
+      <div class="group"><button id="calibrate" hidden>Calibrate phone</button><button id="lock">Lock viewpoint</button><button id="return">Return</button><button id="record">Record video</button></div>
+      <div class="group"><button id="save">Save scene</button><button id="load">Load scene</button><button id="exportScene">Export scene</button><button id="importScene">Import scene</button><button id="exportPath">Export camera path</button></div>
+      <input id="importFile" type="file" accept="application/json,.json" hidden>
+    </aside>
+    <div id="help">Edit: drag empty space to orbit; drag a person to move; scroll to zoom. Camera: WASD or arrows to move, drag to look, Q/E for height, Shift for speed.</div>
+    <div id="pad"><button data-move="forward">▲</button><div><button data-move="left">◀</button><button data-move="back">▼</button><button data-move="right">▶</button></div></div>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

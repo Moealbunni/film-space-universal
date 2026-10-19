@@ -1,0 +1,38 @@
+{
+  "name": "film-space-desktop",
+  "version": "0.1.0",
+  "description": "Local virtual film studio and camera reference recorder for Windows",
+  "main": "electron.cjs",
+  "author": "Moealbunni",
+  "license": "BSD-2-Clause",
+  "scripts": {
+    "build": "esbuild main.js --bundle --format=esm --outfile=app.js",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win portable --x64"
+  },
+  "build": {
+    "appId": "com.moealbunni.filmspace.desktop",
+    "productName": "Film Space Desktop",
+    "files": [
+      "index.html",
+      "app.js",
+      "style.css",
+      "electron.cjs",
+      "manifest.webmanifest"
+    ],
+    "win": {
+      "target": "portable"
+    },
+    "portable": {
+      "artifactName": "Film-Space-Desktop-${version}-Windows.exe"
+    }
+  },
+  "dependencies": {
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "electron": "44.9.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2"
+  }
+}
