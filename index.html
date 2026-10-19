@@ -14,13 +14,18 @@
   <div id="hud">
     <header><h1>Film Space <span>Desktop</span></h1><div id="status">Edit mode</div></header>
     <aside id="tools">
-      <div class="group"><button id="mode">Camera mode</button><button id="add">Add person</button><button id="remove">Delete selected</button><button id="rotate">Rotate selected</button></div>
-      <div class="group"><label>Lens <select id="lens"><option>35</option><option>50</option><option>75</option><option>200</option></select> mm</label><button id="heightDown">Lower</button><button id="heightUp">Raise</button></div>
+      <div class="group"><button id="mode">Camera mode</button><select id="shape"><option value="person">Person</option><option value="child">Child</option><option value="car">Car</option><option value="bike">Bike</option><option value="box">Box</option><option value="sphere">Sphere</option><option value="wall">Wall</option><option value="cylinder">Cylinder</option><option value="cone">Cone</option><option value="circle">Circle</option><option value="plane">Plane</option><option value="torus">Torus</option></select><button id="add">Add object</button><button id="remove">Delete selected</button><button id="rotate">Rotate selected</button></div>
+      <div class="group"><label>Lens <select id="lens"><option>18</option><option>24</option><option selected>35</option><option>50</option><option>75</option><option>200</option></select> mm</label><button id="heightDown">Lower</button><button id="heightUp">Raise</button></div>
       <div class="group"><button id="calibrate" hidden>Calibrate phone</button><button id="lock">Lock viewpoint</button><button id="return">Return</button><button id="record">Record video</button></div>
       <div class="group"><button id="save">Save scene</button><button id="load">Load scene</button><button id="exportScene">Export scene</button><button id="importScene">Import scene</button><button id="exportPath">Export camera path</button></div>
-      <input id="importFile" type="file" accept="application/json,.json" hidden>
+      <details open><summary>Scene objects</summary><select id="objects" size="5"></select>
+<fieldset id="inspector"><label>Name <input id="objectName"></label><label>Color <input id="color" type="color"></label>
+<div class="group"><button data-color="#ef4444">Red</button><button data-color="#3b82f6">Blue</button><button data-color="#22c55e">Green</button><button data-color="#facc15">Yellow</button></div>
+<div class="transform"><span>Position</span><label>X<input id="positionx" type="number" step=".1"></label><label>Y<input id="positiony" type="number" step=".1"></label><label>Z<input id="positionz" type="number" step=".1"></label></div><div class="transform"><span>Rotation</span><label>X<input id="rotationx" type="number" step="5"></label><label>Y<input id="rotationy" type="number" step="5"></label><label>Z<input id="rotationz" type="number" step="5"></label></div><div class="transform"><span>Scale</span><label>X<input id="scalex" type="number" step=".1"></label><label>Y<input id="scaley" type="number" step=".1"></label><label>Z<input id="scalez" type="number" step=".1"></label></div><div class="group"><button data-size="1.2">Bigger</button><button data-size="0.833333333">Smaller</button><button id="duplicate">Duplicate</button></div></fieldset></details>
+<details open><summary>Camera & floor</summary><label>Camera speed (m/s) <input id="speed" type="number" min="0.01" max="20" step="0.1" value="2.5"></label><label>Mouse sensitivity <input id="sensitivity" type="number" min="0.05" max="5" step="0.05" value="1"></label><label>Floor size (m) <input id="floorSize" type="number" min="2" max="200" value="20"></label></details>
+<input id="importFile" type="file" accept="application/json,.json" hidden>
     </aside>
-    <div id="help">Edit: drag empty space to orbit; drag a person to move; scroll to zoom. Camera: WASD or arrows to move, drag to look, Q/E for height, Shift for speed.</div>
+    <div id="help">Edit: drag empty space to orbit; drag an object to move; scroll to move closer. Camera: WASD or arrows to move, drag to look, Q/E for height, Shift for speed. Recordings contain only the scene.</div>
     <div id="pad"><button data-move="forward">▲</button><div><button data-move="left">◀</button><button data-move="back">▼</button><button data-move="right">▶</button></div></div>
   </div>
   <script type="module" src="app.js"></script>

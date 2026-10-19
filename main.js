@@ -25,7 +25,7 @@ scene.add(floor);
 const grid = new THREE.GridHelper(20, 20, 0x828282, 0x525252);
 grid.position.y = 0.004;
 scene.add(grid);
-scene.add(new THREE.AxesHelper(1.4));
+const axes = new THREE.AxesHelper(1.4); scene.add(axes);
 
 const camera = new THREE.PerspectiveCamera(54, 1, 0.05, 300);
 const people = [];
@@ -39,6 +39,7 @@ let cameraYaw = 0;
 let cameraPitch = 0;
 let cameraPosition = new THREE.Vector3(0, 1.6, 4);
 let lockedView = null;
+let viewLocked = false;
 let orientationZero = null;
 let orientationCurrent = null;
 let motionEnabled = false;
@@ -57,6 +58,7 @@ function makePerson(x = 0, z = 0, rotation = 0) {
   const root = new THREE.Group();
   const material = new THREE.MeshStandardMaterial({ color: 0x596173, roughness: 0.9 });
   root.userData.clothing = material;
+  root.userData.type = "person"; root.name = "Person " + (people.length + 1);
   const skin = new THREE.MeshStandardMaterial({ color: 0xc2996b, roughness: 0.8 });
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.48, 0.18), material);
   body.position.y = 1.22;
@@ -84,7 +86,41 @@ function makePerson(x = 0, z = 0, rotation = 0) {
 }
 function select(person) {
   selected = person;
-  for (const p of people) p.userData.clothing.color.setHex(p === person ? 0x278bff : 0x596173);
+  refreshEditor();
+}
+function makeObject(type) {
+  if (type === 'person' || type === 'child') {
+    const p = makePerson(); p.userData.type = type;
+    if (type === 'child') { p.scale.setScalar(.65); p.name = 'Child'; }
+    return p;
+  }
+  const root = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({color:'#e6ad42', roughness:.75});
+  root.userData.clothing = mat; root.userData.type = type; root.name = type[0].toUpperCase()+type.slice(1);
+  function part(g,x,y,z,material=mat) { const m=new THREE.Mesh(g,material);m.position.set(x,y,z);root.add(m);return m; }
+  const box=(w,h,d,x,y,z,m=mat)=>part(new THREE.BoxGeometry(w,h,d),x,y,z,m);
+  if(type==='car') {
+    box(1.8,.65,3.6,0,.65,0); box(1.5,.7,1.8,0,1.3,-.15);
+    const rubber=new THREE.MeshStandardMaterial({color:'#20242b'});
+    for(const x of [-.92,.92]) for(const z of [-1.1,1.1]) part(new THREE.CylinderGeometry(.38,.38,.22,24),x,.38,z,rubber).rotation.z=Math.PI/2;
+  } else if(type==='bike') {
+    for(const z of [-.7,.7]) part(new THREE.TorusGeometry(.38,.06,8,32),0,.44,z).rotation.y=Math.PI/2;
+    box(.12,.1,1.4,0,.65,0);box(.12,.7,.12,0,.9,.7);box(.7,.08,.1,0,1.25,.7);box(.35,.08,.35,0,1,-.3);box(.08,.5,.08,0,.75,-.3);
+  } else {
+    const geometries={box:()=>new THREE.BoxGeometry(1,1,1),wall:()=>new THREE.BoxGeometry(4,2.5,.2),sphere:()=>new THREE.SphereGeometry(.5,32,24),cylinder:()=>new THREE.CylinderGeometry(.5,.5,1,32),cone:()=>new THREE.ConeGeometry(.5,1,32),circle:()=>new THREE.CylinderGeometry(.5,.5,.04,32),plane:()=>new THREE.BoxGeometry(3,.05,3),torus:()=>new THREE.TorusGeometry(.5,.15,12,32)};
+    part(geometries[type](),0,type==='wall'?1.25:type==='plane'?.025:type==='circle'?.02:.5,0);
+  }
+  scene.add(root); people.push(root); return root;
+}
+function refreshEditor() {
+  const list=document.querySelector('#objects'); if(!list)return;
+  list.replaceChildren(...people.map((p,i)=>{const o=document.createElement('option');o.value=i;o.textContent=p.name;o.selected=p===selected;return o;}));
+  if(!selected)list.selectedIndex=-1;
+  document.querySelector('#inspector').disabled=!selected;
+  if(!selected)return;
+  document.querySelector('#objectName').value=selected.name;
+  document.querySelector('#color').value='#'+selected.userData.clothing.color.getHexString();
+  for(const kind of ['position','rotation','scale']) for(const axis of ['x','y','z']) document.querySelector('#'+kind+axis).value=(kind==='rotation'?THREE.MathUtils.radToDeg(selected[kind][axis]):selected[kind][axis]).toFixed(2);
 }
 function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
@@ -168,16 +204,18 @@ canvas.addEventListener("pointermove", event => {
   if (!pointers.has(event.pointerId)) return;
   const old = pointers.get(event.pointerId);
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-  if (pointers.size === 2 && mode === "edit") {
+  if (pointers.size === 2 && mode === "edit" && !viewLocked) {
     const pts = [...pointers.values()];
     const distance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
     if (drag?.pinchDistance) orbitRadius = THREE.MathUtils.clamp(orbitRadius * drag.pinchDistance / distance, 1.5, 30);
     drag = { pinchDistance: distance };
   } else if (drag?.type === "person" && selected) {
     const point = groundHit(event);
-    if (point) selected.position.set(point.x, 0, point.z);
-  } else if (drag?.type === "view") {
-    const dx = event.clientX - old.x, dy = event.clientY - old.y;
+    if (point) selected.position.set(point.x, selected.position.y, point.z);
+    refreshEditor();
+  } else if (drag?.type === "view" && !viewLocked) {
+    const sensitivity=Number(document.querySelector("#sensitivity").value);
+    const dx = (event.clientX - old.x)*sensitivity, dy = (event.clientY - old.y)*sensitivity;
     if (mode === "edit") {
       orbitYaw -= dx * 0.006;
       orbitPitch = THREE.MathUtils.clamp(orbitPitch + dy * 0.006, -1.2, 1.4);
@@ -191,12 +229,16 @@ function endPointer(event) { pointers.delete(event.pointerId); drag = null; }
 canvas.addEventListener("pointerup", endPointer);
 canvas.addEventListener("pointercancel", endPointer);
 canvas.addEventListener("wheel", event => {
-  if (mode === "edit") orbitRadius = THREE.MathUtils.clamp(orbitRadius * Math.exp(event.deltaY * 0.001), 1.5, 30);
+  if (!viewLocked) {
+    if (mode === "edit") orbitRadius = THREE.MathUtils.clamp(orbitRadius * Math.exp(event.deltaY * 0.001), .25, 150);
+    else cameraPosition.addScaledVector(new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion), -event.deltaY*.005*Number(document.querySelector("#speed").value));
+  }
   event.preventDefault();
 }, { passive: false });
 
 function moveCamera(dt) {
-  const speed = (pressed.has("Shift") ? 5 : 2.5) * dt;
+  if(viewLocked)return;
+  const speed = (pressed.has("Shift") ? 2 : 1) * Number(document.querySelector("#speed").value) * dt;
   const keys = new Set([...pressed, ...touchMove]);
   const forward = new THREE.Vector3(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
   const right = new THREE.Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
@@ -204,11 +246,12 @@ function moveCamera(dt) {
   if (keys.has("s") || keys.has("ArrowDown") || keys.has("back")) cameraPosition.addScaledVector(forward, -speed);
   if (keys.has("a") || keys.has("ArrowLeft") || keys.has("left")) cameraPosition.addScaledVector(right, -speed);
   if (keys.has("d") || keys.has("ArrowRight") || keys.has("right")) cameraPosition.addScaledVector(right, speed);
-  if (keys.has("q")) cameraPosition.y -= speed;
-  if (keys.has("e")) cameraPosition.y += speed;
+  if (keys.has("q") || keys.has("down")) cameraPosition.y -= speed;
+  if (keys.has("e") || keys.has("up")) cameraPosition.y += speed;
   cameraPosition.y = Math.max(0.15, cameraPosition.y);
 }
 addEventListener("keydown", event => {
+  if (/INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(event.key)) event.preventDefault();
   pressed.add(event.key.length === 1 ? event.key.toLowerCase() : event.key);
 });
@@ -221,18 +264,21 @@ for (const button of document.querySelectorAll("[data-move]")) {
   button.addEventListener("pointercancel", () => touchMove.delete(action));
 }
 document.querySelector("#mode").onclick = () => setMode(mode === "edit" ? "camera" : "edit");
-document.querySelector("#add").onclick = () => select(makePerson(Math.random() * 2 - 1, Math.random() * 2 - 1));
+document.querySelector("#add").onclick = () => select(makeObject(document.querySelector("#shape").value));
 document.querySelector("#remove").onclick = () => {
   if (!selected) return;
   people.splice(people.indexOf(selected), 1);
   scene.remove(selected);
-  selected = null;
+  select(null);
 };
-document.querySelector("#rotate").onclick = () => { if (selected) selected.rotation.y += Math.PI / 8; };
-document.querySelector("#heightDown").onclick = () => { if (mode === "edit") orbitTarget.y -= 0.15; else cameraPosition.y -= 0.15; };
-document.querySelector("#heightUp").onclick = () => { if (mode === "edit") orbitTarget.y += 0.15; else cameraPosition.y += 0.15; };
+document.querySelector("#rotate").onclick = () => { if (selected) { selected.rotation.y += Math.PI / 8; refreshEditor(); } };
+document.querySelector("#heightDown").onclick = () => { if(viewLocked)return; if (mode === "edit") orbitTarget.y -= 0.15; else cameraPosition.y -= 0.15; };
+document.querySelector("#heightUp").onclick = () => { if(viewLocked)return; if (mode === "edit") orbitTarget.y += 0.15; else cameraPosition.y += 0.15; };
 document.querySelector("#lens").onchange = applyLens;
 document.querySelector("#lock").onclick = () => {
+  viewLocked = !viewLocked;
+  document.querySelector("#lock").textContent=viewLocked?"Unlock viewpoint":"Lock viewpoint";
+  if(!viewLocked){status("Viewpoint unlocked");return;}
   lockedView = { mode, position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), orbitTarget: orbitTarget.toArray(), orbitRadius, orbitYaw, orbitPitch, cameraYaw, cameraPitch };
   status("Viewpoint locked");
 };
@@ -265,7 +311,9 @@ document.querySelector("#calibrate").onclick = async () => {
 
 function sceneData() {
   return {
-    format: "film-space-universal-v1",
+    format: "film-space-universal-v2",
+    floorSize: Number(document.querySelector("#floorSize").value),
+    objects: people.map(p=>({type:p.userData.type,name:p.name,color:"#"+p.userData.clothing.color.getHexString(),position:p.position.toArray(),rotation:p.rotation.toArray().slice(0,3),scale:p.scale.toArray()})),
     people: people.map(p => ({ position: p.position.toArray(), rotationY: p.rotation.y })),
     lens: Number(document.querySelector("#lens").value),
     camera: { position: cameraPosition.toArray(), yaw: cameraYaw, pitch: cameraPitch },
@@ -273,9 +321,12 @@ function sceneData() {
   };
 }
 function restoreScene(data) {
-  if (data?.format !== "film-space-universal-v1" || !Array.isArray(data.people)) throw new Error("Not a Film Space Universal scene");
+  if (!["film-space-universal-v1","film-space-universal-v2"].includes(data?.format) || !Array.isArray(data.objects || data.people)) throw new Error("Not a Film Space Universal scene");
   while (people.length) scene.remove(people.pop());
-  for (const p of data.people) makePerson(p.position[0], p.position[2], p.rotationY);
+  for (const d of (data.objects || data.people.map(p=>({type:'person',position:p.position,rotation:[0,p.rotationY,0],scale:[1,1,1]})))) {
+    const p=makeObject(d.type);p.position.fromArray(d.position);p.rotation.set(...d.rotation);p.scale.fromArray(d.scale);if(d.name)p.name=d.name;if(d.color)p.userData.clothing.color.set(d.color);
+  }
+  document.querySelector('#floorSize').value=data.floorSize || 20; resizeFloor();
   orbitTarget.fromArray(data.orbit.target);
   orbitRadius = data.orbit.radius;
   orbitYaw = data.orbit.yaw;
@@ -316,6 +367,8 @@ document.querySelector("#record").onclick = () => {
   setMode("camera");
   const mime = ["video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm"].find(m => MediaRecorder.isTypeSupported(m));
   if (!mime) { status("Video recording unavailable here; use your device screen recorder"); return; }
+  grid.visible=false; axes.visible=false;
+  renderer.render(scene,camera);
   const stream = canvas.captureStream(30);
   const chunks = [];
   recorder = new MediaRecorder(stream, { mimeType: mime });
@@ -323,7 +376,7 @@ document.querySelector("#record").onclick = () => {
   recorder.onstop = () => {
     download(mime.includes("mp4") ? "film-space-motion.mp4" : "film-space-motion.webm", new Blob(chunks, { type: mime }));
     stream.getTracks().forEach(t => t.stop());
-    recorder = null;
+    recorder = null; grid.visible=true; axes.visible=true;
     document.querySelector("#record").textContent = "Record video";
     document.querySelector("#record").classList.remove("recording");
     status("Video saved");
@@ -336,8 +389,21 @@ document.querySelector("#record").onclick = () => {
   status("Recording camera move");
 };
 
+document.querySelector('#objects').onchange=e=>select(people[Number(e.target.value)]);
+document.querySelector('#objectName').onchange=e=>{if(selected){selected.name=e.target.value;refreshEditor();}};
+document.querySelector('#color').oninput=e=>{if(selected)selected.userData.clothing.color.set(e.target.value);};
+for(const kind of ['position','rotation','scale']) for(const axis of ['x','y','z']) document.querySelector('#'+kind+axis).onchange=e=>{
+ if(!selected)return;const v=Number(e.target.value);if(!Number.isFinite(v))return;
+ selected[kind][axis]=kind==='rotation'?THREE.MathUtils.degToRad(v):kind==='scale'?Math.max(.01,v):v;refreshEditor();
+};
+for(const b of document.querySelectorAll('[data-color]'))b.onclick=()=>{if(selected){selected.userData.clothing.color.set(b.dataset.color);refreshEditor();}};
+for(const b of document.querySelectorAll('[data-size]'))b.onclick=()=>{if(selected){selected.scale.multiplyScalar(Number(b.dataset.size));refreshEditor();}};
+document.querySelector('#duplicate').onclick=()=>{if(!selected)return;const old=selected,p=makeObject(old.userData.type);p.name=old.name+' copy';p.position.copy(old.position).add(new THREE.Vector3(1,0,0));p.rotation.copy(old.rotation);p.scale.copy(old.scale);p.userData.clothing.color.copy(old.userData.clothing.color);select(p);};
+function resizeFloor(){const size=THREE.MathUtils.clamp(Number(document.querySelector('#floorSize').value)||20,2,200);floor.scale.set(size/20,size/20,1);grid.scale.setScalar(size/20);checkerTexture.repeat.set(size/2,size/2);}
+document.querySelector('#floorSize').onchange=resizeFloor;
 makePerson(0, 0, 0);
 makePerson(-1.5, -1.5, 0.5);
+refreshEditor();
 let previous = performance.now();
 let sampleTime = 0;
 function frame(now) {

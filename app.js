@@ -5248,7 +5248,7 @@ var Box3 = class {
     _f0.subVectors(_v1$7, _v0$2);
     _f1.subVectors(_v2$4, _v1$7);
     _f2.subVectors(_v0$2, _v2$4);
-    let axes = [
+    let axes2 = [
       0,
       -_f0.z,
       _f0.y,
@@ -5277,16 +5277,16 @@ var Box3 = class {
       _f2.x,
       0
     ];
-    if (!satForAxes(axes, _v0$2, _v1$7, _v2$4, _extents)) {
+    if (!satForAxes(axes2, _v0$2, _v1$7, _v2$4, _extents)) {
       return false;
     }
-    axes = [1, 0, 0, 0, 1, 0, 0, 0, 1];
-    if (!satForAxes(axes, _v0$2, _v1$7, _v2$4, _extents)) {
+    axes2 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+    if (!satForAxes(axes2, _v0$2, _v1$7, _v2$4, _extents)) {
       return false;
     }
     _triangleNormal.crossVectors(_f0, _f1);
-    axes = [_triangleNormal.x, _triangleNormal.y, _triangleNormal.z];
-    return satForAxes(axes, _v0$2, _v1$7, _v2$4, _extents);
+    axes2 = [_triangleNormal.x, _triangleNormal.y, _triangleNormal.z];
+    return satForAxes(axes2, _v0$2, _v1$7, _v2$4, _extents);
   }
   /**
    * Clamps the given point within the bounds of this box.
@@ -5436,9 +5436,9 @@ var _center = /* @__PURE__ */ new Vector3();
 var _extents = /* @__PURE__ */ new Vector3();
 var _triangleNormal = /* @__PURE__ */ new Vector3();
 var _testAxis = /* @__PURE__ */ new Vector3();
-function satForAxes(axes, v0, v1, v2, extents) {
-  for (let i = 0, j = axes.length - 3; i <= j; i += 3) {
-    _testAxis.fromArray(axes, i);
+function satForAxes(axes2, v0, v1, v2, extents) {
+  for (let i = 0, j = axes2.length - 3; i <= j; i += 3) {
+    _testAxis.fromArray(axes2, i);
     const r = extents.x * Math.abs(_testAxis.x) + extents.y * Math.abs(_testAxis.y) + extents.z * Math.abs(_testAxis.z);
     const p0 = v0.dot(_testAxis);
     const p1 = v1.dot(_testAxis);
@@ -13380,6 +13380,193 @@ var ExternalTexture = class extends Texture {
     return this;
   }
 };
+var CylinderGeometry = class _CylinderGeometry extends BufferGeometry {
+  /**
+   * Constructs a new cylinder geometry.
+   *
+   * @param {number} [radiusTop=1] - Radius of the cylinder at the top.
+   * @param {number} [radiusBottom=1] - Radius of the cylinder at the bottom.
+   * @param {number} [height=1] - Height of the cylinder.
+   * @param {number} [radialSegments=32] - Number of segmented faces around the circumference of the cylinder.
+   * @param {number} [heightSegments=1] - Number of rows of faces along the height of the cylinder.
+   * @param {boolean} [openEnded=false] - Whether the base of the cylinder is open or capped.
+   * @param {number} [thetaStart=0] - Start angle for first segment, in radians.
+   * @param {number} [thetaLength=Math.PI*2] - The central angle, often called theta, of the circular sector, in radians.
+   * The default value results in a complete cylinder.
+   */
+  constructor(radiusTop = 1, radiusBottom = 1, height = 1, radialSegments = 32, heightSegments = 1, openEnded = false, thetaStart = 0, thetaLength = Math.PI * 2) {
+    super();
+    this.type = "CylinderGeometry";
+    this.parameters = {
+      radiusTop,
+      radiusBottom,
+      height,
+      radialSegments,
+      heightSegments,
+      openEnded,
+      thetaStart,
+      thetaLength
+    };
+    const scope = this;
+    radialSegments = Math.floor(radialSegments);
+    heightSegments = Math.floor(heightSegments);
+    const indices = [];
+    const vertices = [];
+    const normals = [];
+    const uvs = [];
+    let index = 0;
+    const indexArray = [];
+    const halfHeight = height / 2;
+    let groupStart = 0;
+    generateTorso();
+    if (openEnded === false) {
+      if (radiusTop > 0) generateCap(true);
+      if (radiusBottom > 0) generateCap(false);
+    }
+    this.setIndex(indices);
+    this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+    this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+    this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+    function generateTorso() {
+      const normal = new Vector3();
+      const vertex2 = new Vector3();
+      let groupCount = 0;
+      const slope = (radiusBottom - radiusTop) / height;
+      for (let y = 0; y <= heightSegments; y++) {
+        const indexRow = [];
+        const v = y / heightSegments;
+        const radius = v * (radiusBottom - radiusTop) + radiusTop;
+        for (let x = 0; x <= radialSegments; x++) {
+          const u = x / radialSegments;
+          const theta = u * thetaLength + thetaStart;
+          const sinTheta = Math.sin(theta);
+          const cosTheta = Math.cos(theta);
+          vertex2.x = radius * sinTheta;
+          vertex2.y = -v * height + halfHeight;
+          vertex2.z = radius * cosTheta;
+          vertices.push(vertex2.x, vertex2.y, vertex2.z);
+          normal.set(sinTheta, slope, cosTheta).normalize();
+          normals.push(normal.x, normal.y, normal.z);
+          uvs.push(u, 1 - v);
+          indexRow.push(index++);
+        }
+        indexArray.push(indexRow);
+      }
+      for (let x = 0; x < radialSegments; x++) {
+        for (let y = 0; y < heightSegments; y++) {
+          const a = indexArray[y][x];
+          const b = indexArray[y + 1][x];
+          const c = indexArray[y + 1][x + 1];
+          const d = indexArray[y][x + 1];
+          if (radiusTop > 0 || y !== 0) {
+            indices.push(a, b, d);
+            groupCount += 3;
+          }
+          if (radiusBottom > 0 || y !== heightSegments - 1) {
+            indices.push(b, c, d);
+            groupCount += 3;
+          }
+        }
+      }
+      scope.addGroup(groupStart, groupCount, 0);
+      groupStart += groupCount;
+    }
+    function generateCap(top) {
+      const centerIndexStart = index;
+      const uv = new Vector2();
+      const vertex2 = new Vector3();
+      let groupCount = 0;
+      const radius = top === true ? radiusTop : radiusBottom;
+      const sign = top === true ? 1 : -1;
+      for (let x = 1; x <= radialSegments; x++) {
+        vertices.push(0, halfHeight * sign, 0);
+        normals.push(0, sign, 0);
+        uvs.push(0.5, 0.5);
+        index++;
+      }
+      const centerIndexEnd = index;
+      for (let x = 0; x <= radialSegments; x++) {
+        const u = x / radialSegments;
+        const theta = u * thetaLength + thetaStart;
+        const cosTheta = Math.cos(theta);
+        const sinTheta = Math.sin(theta);
+        vertex2.x = radius * sinTheta;
+        vertex2.y = halfHeight * sign;
+        vertex2.z = radius * cosTheta;
+        vertices.push(vertex2.x, vertex2.y, vertex2.z);
+        normals.push(0, sign, 0);
+        uv.x = cosTheta * 0.5 + 0.5;
+        uv.y = sinTheta * 0.5 * sign + 0.5;
+        uvs.push(uv.x, uv.y);
+        index++;
+      }
+      for (let x = 0; x < radialSegments; x++) {
+        const c = centerIndexStart + x;
+        const i = centerIndexEnd + x;
+        if (top === true) {
+          indices.push(i, i + 1, c);
+        } else {
+          indices.push(i + 1, i, c);
+        }
+        groupCount += 3;
+      }
+      scope.addGroup(groupStart, groupCount, top === true ? 1 : 2);
+      groupStart += groupCount;
+    }
+  }
+  copy(source) {
+    super.copy(source);
+    this.parameters = Object.assign({}, source.parameters);
+    return this;
+  }
+  /**
+   * Factory method for creating an instance of this class from the given
+   * JSON object.
+   *
+   * @param {Object} data - A JSON object representing the serialized geometry.
+   * @return {CylinderGeometry} A new instance.
+   */
+  static fromJSON(data) {
+    return new _CylinderGeometry(data.radiusTop, data.radiusBottom, data.height, data.radialSegments, data.heightSegments, data.openEnded, data.thetaStart, data.thetaLength);
+  }
+};
+var ConeGeometry = class _ConeGeometry extends CylinderGeometry {
+  /**
+   * Constructs a new cone geometry.
+   *
+   * @param {number} [radius=1] - Radius of the cone base.
+   * @param {number} [height=1] - Height of the cone.
+   * @param {number} [radialSegments=32] - Number of segmented faces around the circumference of the cone.
+   * @param {number} [heightSegments=1] - Number of rows of faces along the height of the cone.
+   * @param {boolean} [openEnded=false] - Whether the base of the cone is open or capped.
+   * @param {number} [thetaStart=0] - Start angle for first segment, in radians.
+   * @param {number} [thetaLength=Math.PI*2] - The central angle, often called theta, of the circular sector, in radians.
+   * The default value results in a complete cone.
+   */
+  constructor(radius = 1, height = 1, radialSegments = 32, heightSegments = 1, openEnded = false, thetaStart = 0, thetaLength = Math.PI * 2) {
+    super(0, radius, height, radialSegments, heightSegments, openEnded, thetaStart, thetaLength);
+    this.type = "ConeGeometry";
+    this.parameters = {
+      radius,
+      height,
+      radialSegments,
+      heightSegments,
+      openEnded,
+      thetaStart,
+      thetaLength
+    };
+  }
+  /**
+   * Factory method for creating an instance of this class from the given
+   * JSON object.
+   *
+   * @param {Object} data - A JSON object representing the serialized geometry.
+   * @return {ConeGeometry} A new instance.
+   */
+  static fromJSON(data) {
+    return new _ConeGeometry(data.radius, data.height, data.radialSegments, data.heightSegments, data.openEnded, data.thetaStart, data.thetaLength);
+  }
+};
 var PlaneGeometry = class _PlaneGeometry extends BufferGeometry {
   /**
    * Constructs a new plane geometry.
@@ -13537,6 +13724,82 @@ var SphereGeometry = class _SphereGeometry extends BufferGeometry {
    */
   static fromJSON(data) {
     return new _SphereGeometry(data.radius, data.widthSegments, data.heightSegments, data.phiStart, data.phiLength, data.thetaStart, data.thetaLength);
+  }
+};
+var TorusGeometry = class _TorusGeometry extends BufferGeometry {
+  /**
+   * Constructs a new torus geometry.
+   *
+   * @param {number} [radius=1] - Radius of the torus, from the center of the torus to the center of the tube.
+   * @param {number} [tube=0.4] - Radius of the tube. Must be smaller than `radius`.
+   * @param {number} [radialSegments=12] - The number of radial segments.
+   * @param {number} [tubularSegments=48] - The number of tubular segments.
+   * @param {number} [arc=Math.PI*2] - Central angle in radians.
+   */
+  constructor(radius = 1, tube = 0.4, radialSegments = 12, tubularSegments = 48, arc = Math.PI * 2) {
+    super();
+    this.type = "TorusGeometry";
+    this.parameters = {
+      radius,
+      tube,
+      radialSegments,
+      tubularSegments,
+      arc
+    };
+    radialSegments = Math.floor(radialSegments);
+    tubularSegments = Math.floor(tubularSegments);
+    const indices = [];
+    const vertices = [];
+    const normals = [];
+    const uvs = [];
+    const center = new Vector3();
+    const vertex2 = new Vector3();
+    const normal = new Vector3();
+    for (let j = 0; j <= radialSegments; j++) {
+      for (let i = 0; i <= tubularSegments; i++) {
+        const u = i / tubularSegments * arc;
+        const v = j / radialSegments * Math.PI * 2;
+        vertex2.x = (radius + tube * Math.cos(v)) * Math.cos(u);
+        vertex2.y = (radius + tube * Math.cos(v)) * Math.sin(u);
+        vertex2.z = tube * Math.sin(v);
+        vertices.push(vertex2.x, vertex2.y, vertex2.z);
+        center.x = radius * Math.cos(u);
+        center.y = radius * Math.sin(u);
+        normal.subVectors(vertex2, center).normalize();
+        normals.push(normal.x, normal.y, normal.z);
+        uvs.push(i / tubularSegments);
+        uvs.push(j / radialSegments);
+      }
+    }
+    for (let j = 1; j <= radialSegments; j++) {
+      for (let i = 1; i <= tubularSegments; i++) {
+        const a = (tubularSegments + 1) * j + i - 1;
+        const b = (tubularSegments + 1) * (j - 1) + i - 1;
+        const c = (tubularSegments + 1) * (j - 1) + i;
+        const d = (tubularSegments + 1) * j + i;
+        indices.push(a, b, d);
+        indices.push(b, c, d);
+      }
+    }
+    this.setIndex(indices);
+    this.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+    this.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+    this.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+  }
+  copy(source) {
+    super.copy(source);
+    this.parameters = Object.assign({}, source.parameters);
+    return this;
+  }
+  /**
+   * Factory method for creating an instance of this class from the given
+   * JSON object.
+   *
+   * @param {Object} data - A JSON object representing the serialized geometry.
+   * @return {TorusGeometry} A new instance.
+   */
+  static fromJSON(data) {
+    return new _TorusGeometry(data.radius, data.tube, data.radialSegments, data.tubularSegments, data.arc);
   }
 };
 var MeshStandardMaterial = class extends Material {
@@ -25942,7 +26205,8 @@ scene.add(floor);
 var grid = new GridHelper(20, 20, 8553090, 5395026);
 grid.position.y = 4e-3;
 scene.add(grid);
-scene.add(new AxesHelper(1.4));
+var axes = new AxesHelper(1.4);
+scene.add(axes);
 var camera = new PerspectiveCamera(54, 1, 0.05, 300);
 var people = [];
 var selected = null;
@@ -25955,6 +26219,7 @@ var cameraYaw = 0;
 var cameraPitch = 0;
 var cameraPosition = new Vector3(0, 1.6, 4);
 var lockedView = null;
+var viewLocked = false;
 var orientationZero = null;
 var orientationCurrent = null;
 var motionEnabled = false;
@@ -25974,6 +26239,8 @@ function makePerson(x = 0, z = 0, rotation = 0) {
   const root = new Group();
   const material = new MeshStandardMaterial({ color: 5857651, roughness: 0.9 });
   root.userData.clothing = material;
+  root.userData.type = "person";
+  root.name = "Person " + (people.length + 1);
   const skin = new MeshStandardMaterial({ color: 12753259, roughness: 0.8 });
   const body = new Mesh(new BoxGeometry(0.36, 0.48, 0.18), material);
   body.position.y = 1.22;
@@ -26001,7 +26268,66 @@ function makePerson(x = 0, z = 0, rotation = 0) {
 }
 function select(person) {
   selected = person;
-  for (const p of people) p.userData.clothing.color.setHex(p === person ? 2591743 : 5857651);
+  refreshEditor();
+}
+function makeObject(type) {
+  if (type === "person" || type === "child") {
+    const p = makePerson();
+    p.userData.type = type;
+    if (type === "child") {
+      p.scale.setScalar(0.65);
+      p.name = "Child";
+    }
+    return p;
+  }
+  const root = new Group();
+  const mat = new MeshStandardMaterial({ color: "#e6ad42", roughness: 0.75 });
+  root.userData.clothing = mat;
+  root.userData.type = type;
+  root.name = type[0].toUpperCase() + type.slice(1);
+  function part(g, x, y, z, material = mat) {
+    const m = new Mesh(g, material);
+    m.position.set(x, y, z);
+    root.add(m);
+    return m;
+  }
+  const box = (w, h, d, x, y, z, m = mat) => part(new BoxGeometry(w, h, d), x, y, z, m);
+  if (type === "car") {
+    box(1.8, 0.65, 3.6, 0, 0.65, 0);
+    box(1.5, 0.7, 1.8, 0, 1.3, -0.15);
+    const rubber = new MeshStandardMaterial({ color: "#20242b" });
+    for (const x of [-0.92, 0.92]) for (const z of [-1.1, 1.1]) part(new CylinderGeometry(0.38, 0.38, 0.22, 24), x, 0.38, z, rubber).rotation.z = Math.PI / 2;
+  } else if (type === "bike") {
+    for (const z of [-0.7, 0.7]) part(new TorusGeometry(0.38, 0.06, 8, 32), 0, 0.44, z).rotation.y = Math.PI / 2;
+    box(0.12, 0.1, 1.4, 0, 0.65, 0);
+    box(0.12, 0.7, 0.12, 0, 0.9, 0.7);
+    box(0.7, 0.08, 0.1, 0, 1.25, 0.7);
+    box(0.35, 0.08, 0.35, 0, 1, -0.3);
+    box(0.08, 0.5, 0.08, 0, 0.75, -0.3);
+  } else {
+    const geometries = { box: () => new BoxGeometry(1, 1, 1), wall: () => new BoxGeometry(4, 2.5, 0.2), sphere: () => new SphereGeometry(0.5, 32, 24), cylinder: () => new CylinderGeometry(0.5, 0.5, 1, 32), cone: () => new ConeGeometry(0.5, 1, 32), circle: () => new CylinderGeometry(0.5, 0.5, 0.04, 32), plane: () => new BoxGeometry(3, 0.05, 3), torus: () => new TorusGeometry(0.5, 0.15, 12, 32) };
+    part(geometries[type](), 0, type === "wall" ? 1.25 : type === "plane" ? 0.025 : type === "circle" ? 0.02 : 0.5, 0);
+  }
+  scene.add(root);
+  people.push(root);
+  return root;
+}
+function refreshEditor() {
+  const list = document.querySelector("#objects");
+  if (!list) return;
+  list.replaceChildren(...people.map((p, i) => {
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = p.name;
+    o.selected = p === selected;
+    return o;
+  }));
+  if (!selected) list.selectedIndex = -1;
+  document.querySelector("#inspector").disabled = !selected;
+  if (!selected) return;
+  document.querySelector("#objectName").value = selected.name;
+  document.querySelector("#color").value = "#" + selected.userData.clothing.color.getHexString();
+  for (const kind of ["position", "rotation", "scale"]) for (const axis of ["x", "y", "z"]) document.querySelector("#" + kind + axis).value = (kind === "rotation" ? MathUtils.radToDeg(selected[kind][axis]) : selected[kind][axis]).toFixed(2);
 }
 function resize() {
   renderer.setSize(innerWidth, innerHeight, false);
@@ -26087,16 +26413,18 @@ canvas.addEventListener("pointermove", (event) => {
   if (!pointers.has(event.pointerId)) return;
   const old = pointers.get(event.pointerId);
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-  if (pointers.size === 2 && mode === "edit") {
+  if (pointers.size === 2 && mode === "edit" && !viewLocked) {
     const pts = [...pointers.values()];
     const distance = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
     if (drag?.pinchDistance) orbitRadius = MathUtils.clamp(orbitRadius * drag.pinchDistance / distance, 1.5, 30);
     drag = { pinchDistance: distance };
   } else if (drag?.type === "person" && selected) {
     const point = groundHit(event);
-    if (point) selected.position.set(point.x, 0, point.z);
-  } else if (drag?.type === "view") {
-    const dx = event.clientX - old.x, dy = event.clientY - old.y;
+    if (point) selected.position.set(point.x, selected.position.y, point.z);
+    refreshEditor();
+  } else if (drag?.type === "view" && !viewLocked) {
+    const sensitivity = Number(document.querySelector("#sensitivity").value);
+    const dx = (event.clientX - old.x) * sensitivity, dy = (event.clientY - old.y) * sensitivity;
     if (mode === "edit") {
       orbitYaw -= dx * 6e-3;
       orbitPitch = MathUtils.clamp(orbitPitch + dy * 6e-3, -1.2, 1.4);
@@ -26113,11 +26441,15 @@ function endPointer(event) {
 canvas.addEventListener("pointerup", endPointer);
 canvas.addEventListener("pointercancel", endPointer);
 canvas.addEventListener("wheel", (event) => {
-  if (mode === "edit") orbitRadius = MathUtils.clamp(orbitRadius * Math.exp(event.deltaY * 1e-3), 1.5, 30);
+  if (!viewLocked) {
+    if (mode === "edit") orbitRadius = MathUtils.clamp(orbitRadius * Math.exp(event.deltaY * 1e-3), 0.25, 150);
+    else cameraPosition.addScaledVector(new Vector3(0, 0, -1).applyQuaternion(camera.quaternion), -event.deltaY * 5e-3 * Number(document.querySelector("#speed").value));
+  }
   event.preventDefault();
 }, { passive: false });
 function moveCamera(dt) {
-  const speed = (pressed.has("Shift") ? 5 : 2.5) * dt;
+  if (viewLocked) return;
+  const speed = (pressed.has("Shift") ? 2 : 1) * Number(document.querySelector("#speed").value) * dt;
   const keys = /* @__PURE__ */ new Set([...pressed, ...touchMove]);
   const forward = new Vector3(-Math.sin(cameraYaw), 0, -Math.cos(cameraYaw));
   const right = new Vector3(Math.cos(cameraYaw), 0, -Math.sin(cameraYaw));
@@ -26125,11 +26457,12 @@ function moveCamera(dt) {
   if (keys.has("s") || keys.has("ArrowDown") || keys.has("back")) cameraPosition.addScaledVector(forward, -speed);
   if (keys.has("a") || keys.has("ArrowLeft") || keys.has("left")) cameraPosition.addScaledVector(right, -speed);
   if (keys.has("d") || keys.has("ArrowRight") || keys.has("right")) cameraPosition.addScaledVector(right, speed);
-  if (keys.has("q")) cameraPosition.y -= speed;
-  if (keys.has("e")) cameraPosition.y += speed;
+  if (keys.has("q") || keys.has("down")) cameraPosition.y -= speed;
+  if (keys.has("e") || keys.has("up")) cameraPosition.y += speed;
   cameraPosition.y = Math.max(0.15, cameraPosition.y);
 }
 addEventListener("keydown", (event) => {
+  if (/INPUT|SELECT|TEXTAREA/.test(event.target.tagName)) return;
   if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(event.key)) event.preventDefault();
   pressed.add(event.key.length === 1 ? event.key.toLowerCase() : event.key);
 });
@@ -26150,26 +26483,37 @@ for (const button of document.querySelectorAll("[data-move]")) {
   button.addEventListener("pointercancel", () => touchMove.delete(action));
 }
 document.querySelector("#mode").onclick = () => setMode(mode === "edit" ? "camera" : "edit");
-document.querySelector("#add").onclick = () => select(makePerson(Math.random() * 2 - 1, Math.random() * 2 - 1));
+document.querySelector("#add").onclick = () => select(makeObject(document.querySelector("#shape").value));
 document.querySelector("#remove").onclick = () => {
   if (!selected) return;
   people.splice(people.indexOf(selected), 1);
   scene.remove(selected);
-  selected = null;
+  select(null);
 };
 document.querySelector("#rotate").onclick = () => {
-  if (selected) selected.rotation.y += Math.PI / 8;
+  if (selected) {
+    selected.rotation.y += Math.PI / 8;
+    refreshEditor();
+  }
 };
 document.querySelector("#heightDown").onclick = () => {
+  if (viewLocked) return;
   if (mode === "edit") orbitTarget.y -= 0.15;
   else cameraPosition.y -= 0.15;
 };
 document.querySelector("#heightUp").onclick = () => {
+  if (viewLocked) return;
   if (mode === "edit") orbitTarget.y += 0.15;
   else cameraPosition.y += 0.15;
 };
 document.querySelector("#lens").onchange = applyLens;
 document.querySelector("#lock").onclick = () => {
+  viewLocked = !viewLocked;
+  document.querySelector("#lock").textContent = viewLocked ? "Unlock viewpoint" : "Lock viewpoint";
+  if (!viewLocked) {
+    status("Viewpoint unlocked");
+    return;
+  }
   lockedView = { mode, position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), orbitTarget: orbitTarget.toArray(), orbitRadius, orbitYaw, orbitPitch, cameraYaw, cameraPitch };
   status("Viewpoint locked");
 };
@@ -26205,7 +26549,9 @@ document.querySelector("#calibrate").onclick = async () => {
 };
 function sceneData() {
   return {
-    format: "film-space-universal-v1",
+    format: "film-space-universal-v2",
+    floorSize: Number(document.querySelector("#floorSize").value),
+    objects: people.map((p) => ({ type: p.userData.type, name: p.name, color: "#" + p.userData.clothing.color.getHexString(), position: p.position.toArray(), rotation: p.rotation.toArray().slice(0, 3), scale: p.scale.toArray() })),
     people: people.map((p) => ({ position: p.position.toArray(), rotationY: p.rotation.y })),
     lens: Number(document.querySelector("#lens").value),
     camera: { position: cameraPosition.toArray(), yaw: cameraYaw, pitch: cameraPitch },
@@ -26213,9 +26559,18 @@ function sceneData() {
   };
 }
 function restoreScene(data) {
-  if (data?.format !== "film-space-universal-v1" || !Array.isArray(data.people)) throw new Error("Not a Film Space Universal scene");
+  if (!["film-space-universal-v1", "film-space-universal-v2"].includes(data?.format) || !Array.isArray(data.objects || data.people)) throw new Error("Not a Film Space Universal scene");
   while (people.length) scene.remove(people.pop());
-  for (const p of data.people) makePerson(p.position[0], p.position[2], p.rotationY);
+  for (const d of data.objects || data.people.map((p) => ({ type: "person", position: p.position, rotation: [0, p.rotationY, 0], scale: [1, 1, 1] }))) {
+    const p = makeObject(d.type);
+    p.position.fromArray(d.position);
+    p.rotation.set(...d.rotation);
+    p.scale.fromArray(d.scale);
+    if (d.name) p.name = d.name;
+    if (d.color) p.userData.clothing.color.set(d.color);
+  }
+  document.querySelector("#floorSize").value = data.floorSize || 20;
+  resizeFloor();
   orbitTarget.fromArray(data.orbit.target);
   orbitRadius = data.orbit.radius;
   orbitYaw = data.orbit.yaw;
@@ -26279,6 +26634,9 @@ document.querySelector("#record").onclick = () => {
     status("Video recording unavailable here; use your device screen recorder");
     return;
   }
+  grid.visible = false;
+  axes.visible = false;
+  renderer.render(scene, camera);
   const stream = canvas.captureStream(30);
   const chunks = [];
   recorder = new MediaRecorder(stream, { mimeType: mime });
@@ -26289,6 +26647,8 @@ document.querySelector("#record").onclick = () => {
     download(mime.includes("mp4") ? "film-space-motion.mp4" : "film-space-motion.webm", new Blob(chunks, { type: mime }));
     stream.getTracks().forEach((t) => t.stop());
     recorder = null;
+    grid.visible = true;
+    axes.visible = true;
     document.querySelector("#record").textContent = "Record video";
     document.querySelector("#record").classList.remove("recording");
     status("Video saved");
@@ -26300,8 +26660,55 @@ document.querySelector("#record").onclick = () => {
   document.querySelector("#record").classList.add("recording");
   status("Recording camera move");
 };
+document.querySelector("#objects").onchange = (e) => select(people[Number(e.target.value)]);
+document.querySelector("#objectName").onchange = (e) => {
+  if (selected) {
+    selected.name = e.target.value;
+    refreshEditor();
+  }
+};
+document.querySelector("#color").oninput = (e) => {
+  if (selected) selected.userData.clothing.color.set(e.target.value);
+};
+for (const kind of ["position", "rotation", "scale"]) for (const axis of ["x", "y", "z"]) document.querySelector("#" + kind + axis).onchange = (e) => {
+  if (!selected) return;
+  const v = Number(e.target.value);
+  if (!Number.isFinite(v)) return;
+  selected[kind][axis] = kind === "rotation" ? MathUtils.degToRad(v) : kind === "scale" ? Math.max(0.01, v) : v;
+  refreshEditor();
+};
+for (const b of document.querySelectorAll("[data-color]")) b.onclick = () => {
+  if (selected) {
+    selected.userData.clothing.color.set(b.dataset.color);
+    refreshEditor();
+  }
+};
+for (const b of document.querySelectorAll("[data-size]")) b.onclick = () => {
+  if (selected) {
+    selected.scale.multiplyScalar(Number(b.dataset.size));
+    refreshEditor();
+  }
+};
+document.querySelector("#duplicate").onclick = () => {
+  if (!selected) return;
+  const old = selected, p = makeObject(old.userData.type);
+  p.name = old.name + " copy";
+  p.position.copy(old.position).add(new Vector3(1, 0, 0));
+  p.rotation.copy(old.rotation);
+  p.scale.copy(old.scale);
+  p.userData.clothing.color.copy(old.userData.clothing.color);
+  select(p);
+};
+function resizeFloor() {
+  const size = MathUtils.clamp(Number(document.querySelector("#floorSize").value) || 20, 2, 200);
+  floor.scale.set(size / 20, size / 20, 1);
+  grid.scale.setScalar(size / 20);
+  checkerTexture.repeat.set(size / 2, size / 2);
+}
+document.querySelector("#floorSize").onchange = resizeFloor;
 makePerson(0, 0, 0);
 makePerson(-1.5, -1.5, 0.5);
+refreshEditor();
 var previous = performance.now();
 var sampleTime = 0;
 function frame(now) {
