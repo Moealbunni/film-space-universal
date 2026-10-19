@@ -4,7 +4,7 @@ This repository contains the Windows desktop studio. The iPhone app is built sep
 
 ## Windows installation
 
-Download [Windows 0.2.0 from Releases](https://github.com/Moealbunni/film-space-universal/releases/tag/v0.2.0), then run **Film-Space-Desktop-0.2.0-Windows.exe**. It is a portable 64-bit Windows app. The packaged app needs no Node.js installation, Google account, AI credits, or internet connection. It has no paid publisher certificate, so Windows may display a publisher warning.
+Download [Windows 0.3.0 from Releases](https://github.com/Moealbunni/film-space-universal/releases/tag/v0.3.0), then run **Film-Space-Desktop-0.3.0-Windows.exe**. It is a portable 64-bit Windows app. The packaged app needs no Node.js installation, Google account, AI credits, or internet connection. It has no paid publisher certificate, so Windows may display a publisher warning.
 
 ## iPhone editor
 
@@ -47,7 +47,21 @@ To rebuild the iPhone app, open [the iPhone build workflow](https://github.com/M
 ## Verified status
 
 - See the iPhone release and Actions run for native build verification; device testing is separate.
-- Windows 0.2 runtime tests passed for all 12 object types, inspector transforms/color/name, save/load round trips, duplicate/delete, lock/unlock labels, camera movement, MP4 export, and camera-path export.
+- Windows 0.3 runtime tests passed for all 12 object types, inspector transforms/color/name, save/load round trips, duplicate/delete, lock/unlock labels, camera movement, MP4 export, and camera-path export.
 - iPhone installation and hands-on ARKit testing are deferred until the phone is connected.
 - Android and Mac releases are outside the current scope.
+
+
+
+## Axis locks, resets, and direct controls
+
+- Camera **Position X/Y/Z** locks hold individual world coordinates. Camera **Rotation X/Y/Z** locks hold the current angles: X is tilt, Y is heading, Z is roll. You can enter 45 degrees and lock that rotation axis. Other axes remain free. Locks remain active when changing modes.
+- **Lock lens / zoom** prevents changes to focal length. A perspective camera has no useful object-size scale, so use lens controls for zoom.
+- Objects have separate locks for all X/Y/Z position, rotation, and scale values. A closed lock holds that value during dragging, resizing, and quick edits.
+- **Reset position** returns an object to the origin; **Reset rotation** returns all angles to zero; **Reset size** returns all scales to 1. Each reset clears its group's locks. Reset size makes a child adult-sized; use Smaller to shrink it again.
+- For the camera, Position Reset returns to (0, 1.6, 4) meters; Rotation Reset faces along the default forward direction. **Reset camera** clears position/rotation locks and full viewpoint locking, then restores both defaults.
+- On Windows, select an object and use its floating **Move / Rotate / Resize** buttons to show draggable 3D handles. Bigger/Smaller and Lift/Lower are beside the object. The side inspector provides exact numbers and locks.
+- On iPhone, tap an object or select it in Objects & scene. The right-hand quick panel provides Bigger/Smaller, Lift/Lower and Edit details. **Camera controls** opens the axis lock panel in either mode.
+- Resizing from ground level keeps the object's base on the floor; Lift/Lower changes its height deliberately. Floor resizing scales the checkerboard squares along with the ground.
+- Recording captures only the scene. Quick panels and 3D editing handles are excluded.
 

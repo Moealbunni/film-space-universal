@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
 
 const canvas = document.querySelector("#stage");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
@@ -28,6 +29,7 @@ scene.add(grid);
 const axes = new THREE.AxesHelper(1.4); scene.add(axes);
 
 const camera = new THREE.PerspectiveCamera(54, 1, 0.05, 300);
+camera.rotation.order="YXZ";
 const people = [];
 let selected = null;
 let mode = "edit";
@@ -35,8 +37,12 @@ let orbitTarget = new THREE.Vector3(0, 1, 0);
 let orbitRadius = 8;
 let orbitYaw = 0.3;
 let orbitPitch = 0.25;
+let orbitRoll = 0;
 let cameraYaw = 0;
 let cameraPitch = 0;
+let cameraRoll = 0;
+const cameraLocks = {position:{}, rotation:{}};
+let lensLocked = false;
 let cameraPosition = new THREE.Vector3(0, 1.6, 4);
 let lockedView = null;
 let viewLocked = false;
@@ -53,6 +59,25 @@ const raycaster = new THREE.Raycaster();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const touchMove = new Set();
 
+const transform = new TransformControls(camera, canvas);
+const transformHelper = transform.getHelper(); scene.add(transformHelper);
+transform.addEventListener('objectChange',()=>{enforceObjectLocks();refreshEditor();});
+function enforceObjectLocks() {
+ for(const p of people) for(const kind of ['position','rotation','scale']) for(const axis of ['x','y','z']) {
+  const v=p.userData.locks?.[kind]?.[axis];if(v!==undefined)p[kind][axis]=v;
+ }
+}
+function cameraConstraints() {
+ for(const kind of ['position','rotation']) for(const axis of ['x','y','z']) {
+  const v=cameraLocks[kind][axis];if(v!==undefined)camera[kind][axis]=v;
+ }
+ if(mode==='camera'){cameraPosition.copy(camera.position);cameraYaw=camera.rotation.y;cameraPitch=camera.rotation.x;cameraRoll=camera.rotation.z;}
+}
+function adoptView() {
+ cameraPosition.copy(camera.position);const e=new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ');cameraPitch=e.x;cameraYaw=e.y;cameraRoll=e.z;orbitRoll=e.z;
+ orbitTarget.copy(camera.position).add(new THREE.Vector3(0,0,-4).applyQuaternion(camera.quaternion));orbitRadius=4;
+ orbitYaw=Math.atan2(camera.position.x-orbitTarget.x,camera.position.z-orbitTarget.z);orbitPitch=Math.asin((camera.position.y-orbitTarget.y)/4);
+}
 function status(message) { document.querySelector("#status").textContent = message; }
 function makePerson(x = 0, z = 0, rotation = 0) {
   const root = new THREE.Group();
@@ -86,6 +111,7 @@ function makePerson(x = 0, z = 0, rotation = 0) {
 }
 function select(person) {
   selected = person;
+  if(person)transform.attach(person);else transform.detach();
   refreshEditor();
 }
 function makeObject(type) {
@@ -118,6 +144,11 @@ function refreshEditor() {
   if(!selected)list.selectedIndex=-1;
   document.querySelector('#inspector').disabled=!selected;
   if(!selected)return;
+  for(const kind of ['position','rotation','scale']) for(const axis of ['x','y','z']) {
+    const locked=selected.userData.locks?.[kind]?.[axis]!==undefined;
+    const b=document.querySelector(`[data-object-lock="${kind}-${axis}"]`);if(b){b.textContent=locked?'🔒':'🔓';b.setAttribute('aria-pressed',String(locked));}
+    document.querySelector('#'+kind+axis).disabled=locked;
+  }
   document.querySelector('#objectName').value=selected.name;
   document.querySelector('#color').value='#'+selected.userData.clothing.color.getHexString();
   for(const kind of ['position','rotation','scale']) for(const axis of ['x','y','z']) document.querySelector('#'+kind+axis).value=(kind==='rotation'?THREE.MathUtils.radToDeg(selected[kind][axis]):selected[kind][axis]).toFixed(2);
@@ -143,6 +174,7 @@ function updateEditCamera() {
     orbitTarget.z + orbitRadius * Math.cos(orbitYaw) * cp
   );
   camera.lookAt(orbitTarget);
+  camera.rotateZ(orbitRoll);
 }
 function updateCameraMode() {
   camera.position.copy(cameraPosition);
@@ -154,19 +186,15 @@ function updateCameraMode() {
     );
   }
   camera.rotation.order = "YXZ";
-  camera.rotation.set(cameraPitch, cameraYaw, 0);
+  camera.rotation.set(cameraPitch, cameraYaw, cameraRoll);
 }
 function setMode(next) {
   if (mode === next) return;
   if (next === "camera") {
-    updateEditCamera();
-    cameraPosition.copy(camera.position);
-    const direction = orbitTarget.clone().sub(camera.position);
-    cameraYaw = Math.atan2(-direction.x, -direction.z);
-    cameraPitch = Math.atan2(direction.y, Math.hypot(direction.x, direction.z));
+    adoptView();
   } else {
     orbitTarget.copy(camera.position).add(new THREE.Vector3(0, 0, -4).applyQuaternion(camera.quaternion));
-    orbitRadius = 4;
+    orbitRadius = 4; orbitRoll=cameraRoll;
     orbitYaw = Math.atan2(camera.position.x - orbitTarget.x, camera.position.z - orbitTarget.z);
     orbitPitch = Math.asin((camera.position.y - orbitTarget.y) / orbitRadius);
   }
@@ -185,6 +213,7 @@ function groundHit(event) {
   return raycaster.ray.intersectPlane(groundPlane, point) ? point : null;
 }
 canvas.addEventListener("pointerdown", event => {
+  if(transform.axis || transform.dragging)return;
   canvas.setPointerCapture(event.pointerId);
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   if (mode !== "edit" || pointers.size > 1) { drag = { type: "view", x: event.clientX, y: event.clientY }; return; }
@@ -201,6 +230,7 @@ canvas.addEventListener("pointerdown", event => {
   }
 });
 canvas.addEventListener("pointermove", event => {
+  if(transform.dragging)return;
   if (!pointers.has(event.pointerId)) return;
   const old = pointers.get(event.pointerId);
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -212,7 +242,7 @@ canvas.addEventListener("pointermove", event => {
   } else if (drag?.type === "person" && selected) {
     const point = groundHit(event);
     if (point) selected.position.set(point.x, selected.position.y, point.z);
-    refreshEditor();
+    enforceObjectLocks(); refreshEditor();
   } else if (drag?.type === "view" && !viewLocked) {
     const sensitivity=Number(document.querySelector("#sensitivity").value);
     const dx = (event.clientX - old.x)*sensitivity, dy = (event.clientY - old.y)*sensitivity;
@@ -271,13 +301,13 @@ document.querySelector("#remove").onclick = () => {
   scene.remove(selected);
   select(null);
 };
-document.querySelector("#rotate").onclick = () => { if (selected) { selected.rotation.y += Math.PI / 8; refreshEditor(); } };
+document.querySelector("#rotate").onclick = () => { if (selected) { selected.rotation.y += Math.PI / 8; enforceObjectLocks();refreshEditor(); } };
 document.querySelector("#heightDown").onclick = () => { if(viewLocked)return; if (mode === "edit") orbitTarget.y -= 0.15; else cameraPosition.y -= 0.15; };
 document.querySelector("#heightUp").onclick = () => { if(viewLocked)return; if (mode === "edit") orbitTarget.y += 0.15; else cameraPosition.y += 0.15; };
 document.querySelector("#lens").onchange = applyLens;
 document.querySelector("#lock").onclick = () => {
   viewLocked = !viewLocked;
-  document.querySelector("#lock").textContent=viewLocked?"Unlock viewpoint":"Lock viewpoint";
+  document.querySelector("#lock").textContent=viewLocked?"Unlock viewpoint":"Lock viewpoint";refreshCameraLocks();
   if(!viewLocked){status("Viewpoint unlocked");return;}
   lockedView = { mode, position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), orbitTarget: orbitTarget.toArray(), orbitRadius, orbitYaw, orbitPitch, cameraYaw, cameraPitch };
   status("Viewpoint locked");
@@ -313,27 +343,30 @@ function sceneData() {
   return {
     format: "film-space-universal-v2",
     floorSize: Number(document.querySelector("#floorSize").value),
-    objects: people.map(p=>({type:p.userData.type,name:p.name,color:"#"+p.userData.clothing.color.getHexString(),position:p.position.toArray(),rotation:p.rotation.toArray().slice(0,3),scale:p.scale.toArray()})),
+    objects: people.map(p=>({type:p.userData.type,name:p.name,color:"#"+p.userData.clothing.color.getHexString(),position:p.position.toArray(),rotation:p.rotation.toArray().slice(0,3),scale:p.scale.toArray(),locks:p.userData.locks || {}})),
+    cameraLocks, lensLocked, cameraRoll,
     people: people.map(p => ({ position: p.position.toArray(), rotationY: p.rotation.y })),
     lens: Number(document.querySelector("#lens").value),
     camera: { position: cameraPosition.toArray(), yaw: cameraYaw, pitch: cameraPitch },
-    orbit: { target: orbitTarget.toArray(), radius: orbitRadius, yaw: orbitYaw, pitch: orbitPitch }
+    orbit: { target: orbitTarget.toArray(), radius: orbitRadius, yaw: orbitYaw, pitch: orbitPitch, roll: orbitRoll }
   };
 }
 function restoreScene(data) {
   if (!["film-space-universal-v1","film-space-universal-v2"].includes(data?.format) || !Array.isArray(data.objects || data.people)) throw new Error("Not a Film Space Universal scene");
   while (people.length) scene.remove(people.pop());
   for (const d of (data.objects || data.people.map(p=>({type:'person',position:p.position,rotation:[0,p.rotationY,0],scale:[1,1,1]})))) {
-    const p=makeObject(d.type);p.position.fromArray(d.position);p.rotation.set(...d.rotation);p.scale.fromArray(d.scale);if(d.name)p.name=d.name;if(d.color)p.userData.clothing.color.set(d.color);
+    const p=makeObject(d.type);p.position.fromArray(d.position);p.rotation.set(...d.rotation);p.scale.fromArray(d.scale);if(d.name)p.name=d.name;if(d.color)p.userData.clothing.color.set(d.color);p.userData.locks=d.locks || {};
   }
   document.querySelector('#floorSize').value=data.floorSize || 20; resizeFloor();
   orbitTarget.fromArray(data.orbit.target);
   orbitRadius = data.orbit.radius;
   orbitYaw = data.orbit.yaw;
-  orbitPitch = data.orbit.pitch;
+  orbitPitch = data.orbit.pitch;orbitRoll=data.orbit.roll || 0;
   cameraPosition.fromArray(data.camera.position);
   cameraYaw = data.camera.yaw;
-  cameraPitch = data.camera.pitch;
+  cameraPitch = data.camera.pitch; cameraRoll=data.cameraRoll || 0;
+  cameraLocks.position=data.cameraLocks?.position || {};cameraLocks.rotation=data.cameraLocks?.rotation || {};
+  lensLocked=Boolean(data.lensLocked);document.querySelector('#lens').disabled=lensLocked;refreshCameraLocks();
   document.querySelector("#lens").value = String(data.lens);
   document.querySelector("#lens").dispatchEvent(new Event("change"));
   select(null);
@@ -367,7 +400,7 @@ document.querySelector("#record").onclick = () => {
   setMode("camera");
   const mime = ["video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm"].find(m => MediaRecorder.isTypeSupported(m));
   if (!mime) { status("Video recording unavailable here; use your device screen recorder"); return; }
-  grid.visible=false; axes.visible=false;
+  grid.visible=false; axes.visible=false;transformHelper.visible=false;
   renderer.render(scene,camera);
   const stream = canvas.captureStream(30);
   const chunks = [];
@@ -397,10 +430,30 @@ for(const kind of ['position','rotation','scale']) for(const axis of ['x','y','z
  selected[kind][axis]=kind==='rotation'?THREE.MathUtils.degToRad(v):kind==='scale'?Math.max(.01,v):v;refreshEditor();
 };
 for(const b of document.querySelectorAll('[data-color]'))b.onclick=()=>{if(selected){selected.userData.clothing.color.set(b.dataset.color);refreshEditor();}};
-for(const b of document.querySelectorAll('[data-size]'))b.onclick=()=>{if(selected){selected.scale.multiplyScalar(Number(b.dataset.size));refreshEditor();}};
+for(const b of document.querySelectorAll('[data-size]'))b.onclick=()=>{if(selected){selected.scale.multiplyScalar(Number(b.dataset.size));enforceObjectLocks();refreshEditor();}};
 document.querySelector('#duplicate').onclick=()=>{if(!selected)return;const old=selected,p=makeObject(old.userData.type);p.name=old.name+' copy';p.position.copy(old.position).add(new THREE.Vector3(1,0,0));p.rotation.copy(old.rotation);p.scale.copy(old.scale);p.userData.clothing.color.copy(old.userData.clothing.color);select(p);};
-function resizeFloor(){const size=THREE.MathUtils.clamp(Number(document.querySelector('#floorSize').value)||20,2,200);floor.scale.set(size/20,size/20,1);grid.scale.setScalar(size/20);checkerTexture.repeat.set(size/2,size/2);}
+function resizeFloor(){const size=THREE.MathUtils.clamp(Number(document.querySelector('#floorSize').value)||20,2,200);floor.scale.set(size/20,size/20,1);grid.scale.setScalar(size/20);checkerTexture.repeat.set(10,10);}
 document.querySelector('#floorSize').onchange=resizeFloor;
+for(const button of document.querySelectorAll('[data-object-lock]'))button.onclick=()=>{
+ if(!selected)return;const [kind,axis]=button.dataset.objectLock.split('-');selected.userData.locks ||= {};selected.userData.locks[kind] ||= {};
+ if(selected.userData.locks[kind][axis]!==undefined)delete selected.userData.locks[kind][axis];else selected.userData.locks[kind][axis]=selected[kind][axis];refreshEditor();
+};
+for(const button of document.querySelectorAll('[data-object-reset]'))button.onclick=()=>{
+ if(!selected)return;const kind=button.dataset.objectReset;selected[kind].set(...(kind==='scale'?[1,1,1]:[0,0,0]));selected.userData.locks ||= {};selected.userData.locks[kind]={};refreshEditor();
+};
+for(const button of document.querySelectorAll('[data-transform]'))button.onclick=()=>{transform.setMode(button.dataset.transform);};
+for(const button of document.querySelectorAll('[data-lift]'))button.onclick=()=>{if(selected){selected.position.y+=Number(button.dataset.lift);enforceObjectLocks();refreshEditor();}};
+function refreshCameraLocks(){for(const button of document.querySelectorAll('[data-camera-lock]')){const [kind,axis]=button.dataset.cameraLock.split('-');const locked=cameraLocks[kind][axis]!==undefined;button.textContent=locked?'🔒':'🔓';button.setAttribute('aria-pressed',String(locked));document.querySelector('#cam'+kind+axis).disabled=locked || viewLocked;}document.querySelector('#lensLock').textContent=lensLocked?'Unlock lens':'Lock lens';}
+for(const button of document.querySelectorAll('[data-camera-lock]'))button.onclick=()=>{
+ adoptView();const [kind,axis]=button.dataset.cameraLock.split('-');if(cameraLocks[kind][axis]!==undefined)delete cameraLocks[kind][axis];else cameraLocks[kind][axis]=camera[kind][axis];refreshCameraLocks();
+};
+for(const kind of ['position','rotation'])for(const axis of ['x','y','z'])document.querySelector('#cam'+kind+axis).onchange=e=>{if(viewLocked)return;const v=Number(e.target.value);if(!Number.isFinite(v))return;camera[kind][axis]=kind==='rotation'?THREE.MathUtils.degToRad(v):v;adoptView();};
+for(const button of document.querySelectorAll('[data-camera-reset]'))button.onclick=()=>{
+ const kind=button.dataset.cameraReset;cameraLocks[kind]={};if(kind==='position')camera.position.set(0,1.6,4);else camera.rotation.set(0,0,0);adoptView();refreshCameraLocks();
+};
+document.querySelector('#resetCamera').onclick=()=>{viewLocked=false;document.querySelector('#lock').textContent='Lock viewpoint';cameraLocks.position={};cameraLocks.rotation={};camera.position.set(0,1.6,4);camera.rotation.set(0,0,0);adoptView();refreshCameraLocks();};
+document.querySelector('#lensLock').onclick=()=>{lensLocked=!lensLocked;document.querySelector('#lens').disabled=lensLocked;refreshCameraLocks();};
+refreshCameraLocks();
 makePerson(0, 0, 0);
 makePerson(-1.5, -1.5, 0.5);
 refreshEditor();
@@ -411,6 +464,12 @@ function frame(now) {
   previous = now;
   if (mode === "edit") updateEditCamera();
   else { moveCamera(dt); updateCameraMode(); }
+  enforceObjectLocks(); cameraConstraints();
+  transform.enabled=mode==='edit' && !recorder;
+  transformHelper.visible=transform.enabled;
+  const quick=document.querySelector('#quickObject');quick.hidden=!selected || mode!=='edit' || Boolean(recorder);
+  if(selected && !quick.hidden){const pt=new THREE.Box3().setFromObject(selected).getCenter(new THREE.Vector3()).project(camera);quick.style.left=Math.max(430,Math.min(innerWidth-230,(pt.x+1)*innerWidth/2))+'px';quick.style.top=Math.max(65,Math.min(innerHeight-90,(-pt.y+1)*innerHeight/2))+'px';}
+  for(const kind of ['position','rotation'])for(const axis of ['x','y','z']){const input=document.querySelector('#cam'+kind+axis);if(document.activeElement!==input)input.value=(kind==='rotation'?THREE.MathUtils.radToDeg(camera.rotation[axis]):camera.position[axis]).toFixed(2);}
   if (recorder && now - sampleTime >= 1000 / 30) {
     path.push({
       time: (now - recordStart) / 1000,

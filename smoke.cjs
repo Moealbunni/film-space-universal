@@ -46,6 +46,28 @@ app.whenReady().then(async () => {
       $('#add').click();$('#remove').click();$('#lock').click();if($('#lock').textContent!=='Lock viewpoint')throw Error('Unlock failed');
       return {types:after.objects.map(p=>p.type),prop,floorSize:after.floorSize};
     })()`);
+    const axisChecks = await window.webContents.executeJavaScript(`(async () => {
+      const $=s=>document.querySelector(s), tick=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      const change=(id,value)=>{$(id).value=value;$(id).dispatchEvent(new Event('change'));};
+      change('#shape','person');$('#add').click();
+      $('[data-object-lock="scale-y"]').click();$('[data-size="1.2"]').click();
+      if(Number($('#scaley').value)!==1 || Number($('#scalex').value)!==1.2)throw Error('Object scale lock failed');
+      $('[data-object-reset="scale"]').click();if(Number($('#scalex').value)!==1)throw Error('Scale reset failed');
+      $('[data-lift="0.1"]').click();if(Number($('#positiony').value)!==.1)throw Error('Lift failed');
+      $('[data-object-reset="position"]').click();if(Number($('#positiony').value)!==0)throw Error('Position reset failed');
+      $('#mode').click();await tick();
+      change('#camrotationy',45);await tick();$('[data-camera-lock="rotation-y"]').click();
+      const c=$('#stage');c.dispatchEvent(new PointerEvent('pointerdown',{pointerId:1,clientX:900,clientY:200,bubbles:true}));
+      c.dispatchEvent(new PointerEvent('pointermove',{pointerId:1,clientX:1050,clientY:230,bubbles:true}));
+      c.dispatchEvent(new PointerEvent('pointerup',{pointerId:1,bubbles:true}));await tick();
+      if(Math.abs(Number($('#camrotationy').value)-45)>.1)throw Error('Camera rotation lock failed');
+      $('#mode').click();await tick();$('#mode').click();await tick();
+      if(Math.abs(Number($('#camrotationy').value)-45)>.1)throw Error('Camera lock lost across modes');
+      $('[data-camera-reset="rotation"]').click();await tick();
+      if(Math.abs(Number($('#camrotationy').value))>.1)throw Error('Camera rotation reset failed');
+      $('#resetCamera').click();await tick();
+      return {objectScaleLock:true,lift:true,resets:true,cameraYawLock45:true,modeSwitch:true};
+    })()`);
     await window.webContents.executeJavaScript("document.querySelector('#record').click(); window.dispatchEvent(new KeyboardEvent('keydown', {key:'w'}));");
     await delay(1400);
     await window.webContents.executeJavaScript("window.dispatchEvent(new KeyboardEvent('keyup', {key:'w'})); document.querySelector('#record').click();");
@@ -61,7 +83,7 @@ app.whenReady().then(async () => {
     const video = downloads.find(d => /\.(mp4|webm)$/.test(d.target));
     if (!video || video.state !== 'completed' || fs.statSync(video.target).size < 1000) throw new Error('Video export failed');
     if (errors.length) throw new Error(errors.join('\n'));
-    const result = { passed: true, counts, editing, samples: data.samples.length, downloads };
+    const result = { passed: true, counts, editing, axisChecks, samples: data.samples.length, downloads };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
     console.log(JSON.stringify(result, null, 2));
     app.exit(0);
