@@ -213,7 +213,7 @@ function groundHit(event) {
   return raycaster.ray.intersectPlane(groundPlane, point) ? point : null;
 }
 canvas.addEventListener("pointerdown", event => {
-  if(transform.axis || transform.dragging)return;
+  if(transform.enabled && (transform.axis || transform.dragging))return;
   canvas.setPointerCapture(event.pointerId);
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
   if (mode !== "edit" || pointers.size > 1) { drag = { type: "view", x: event.clientX, y: event.clientY }; return; }
@@ -230,7 +230,7 @@ canvas.addEventListener("pointerdown", event => {
   }
 });
 canvas.addEventListener("pointermove", event => {
-  if(transform.dragging)return;
+  if(transform.enabled && transform.dragging)return;
   if (!pointers.has(event.pointerId)) return;
   const old = pointers.get(event.pointerId);
   pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });

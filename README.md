@@ -4,7 +4,7 @@ This repository contains the Windows desktop studio. The iPhone app is built sep
 
 ## Windows installation
 
-Download [Windows 0.3.0 from Releases](https://github.com/Moealbunni/film-space-universal/releases/tag/v0.3.0), then run **Film-Space-Desktop-0.3.0-Windows.exe**. It is a portable 64-bit Windows app. The packaged app needs no Node.js installation, Google account, AI credits, or internet connection. It has no paid publisher certificate, so Windows may display a publisher warning.
+Download [Windows 0.3.1 from Releases](https://github.com/Moealbunni/film-space-universal/releases/tag/v0.3.1), then run **Film-Space-Desktop-0.3.1-Windows.exe**. It is a portable 64-bit Windows app. The packaged app needs no Node.js installation, Google account, AI credits, or internet connection. It has no paid publisher certificate, so Windows may display a publisher warning.
 
 ## iPhone editor
 
