@@ -23,7 +23,7 @@ camera_data = bpy.data.cameras.new("Film Space Camera")
 camera_object = bpy.data.objects.new("Film Space Camera", camera_data)
 bpy.context.collection.objects.link(camera_object)
 bpy.context.scene.camera = camera_object
-bpy.context.scene.render.fps = int(data.get("fps", 30))
+bpy.context.scene.render.fps = int(data.get("fps", 60))
 camera_object.rotation_mode = "QUATERNION"
 
 # Three.js: +Y up, camera looks toward -Z.

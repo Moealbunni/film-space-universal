@@ -28073,7 +28073,7 @@ document.querySelector("#exportPath").onclick = () => {
     status("Record a camera move first");
     return;
   }
-  download("film-space-camera-path.json", new Blob([JSON.stringify({ format: "film-space-camera-path-v1", fps: 30, samples: path }, null, 2)], { type: "application/json" }));
+  download("film-space-camera-path.json", new Blob([JSON.stringify({ format: "film-space-camera-path-v1", fps: 60, samples: path }, null, 2)], { type: "application/json" }));
 };
 document.querySelector("#record").onclick = () => {
   if (recorder) {
@@ -28098,9 +28098,9 @@ document.querySelector("#record").onclick = () => {
   axes.visible = false;
   transformHelper.visible = false;
   renderer.render(scene, camera);
-  const stream = canvas.captureStream(30);
+  const stream = canvas.captureStream(60);
   const chunks = [];
-  recorder = new MediaRecorder(stream, { mimeType: mime });
+  recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12e6 });
   recorder.ondataavailable = (event) => {
     if (event.data.size) chunks.push(event.data);
   };
@@ -28119,7 +28119,7 @@ document.querySelector("#record").onclick = () => {
   recorder.start();
   document.querySelector("#record").textContent = "Stop recording";
   document.querySelector("#record").classList.add("recording");
-  status("Recording camera move");
+  status("Recording camera move \xB7 60 fps target");
 };
 document.querySelector("#objects").onchange = (e) => select(people[Number(e.target.value)]);
 document.querySelector("#objectName").onchange = (e) => {

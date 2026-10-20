@@ -4,11 +4,11 @@ This repository contains the Windows desktop studio. The iPhone app is built sep
 
 ## Windows installation
 
-Download [Windows 0.4.0 from Releases](https://github.com/Moealbunni/film-space-universal/releases/tag/v0.4.0), then run **Film-Space-Desktop-0.4.0-Windows.exe**. It is a portable 64-bit Windows app. The packaged app needs no Node.js installation, Google account, AI credits, or internet connection. It has no paid publisher certificate, so Windows may display a publisher warning.
+Download [Windows 0.4.1 from Releases](https://github.com/Moealbunni/film-space-universal/releases/tag/v0.4.1), then run **Film-Space-Desktop-0.4.1-Windows.exe**. It is a portable 64-bit Windows app. The packaged app needs no Node.js installation, Google account, AI credits, or internet connection. It has no paid publisher certificate, so Windows may display a publisher warning.
 
 ## iPhone editor
 
-The updated native iPhone app includes object presets, names/colors, transforms, local scene saving, floor sizing, a lock/unlock toggle and physical ARKit camera tracking. Get the [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.0) and follow its [complete installation and usage guide](https://github.com/Moealbunni/film-space#readme). Installation from Windows requires signing the IPA with your Apple account. Physical installation and phone testing remain deferred.
+The updated native iPhone app includes object presets, names/colors, transforms, local scene saving, floor sizing, a lock/unlock toggle and physical ARKit camera tracking. Get the [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.0) and follow its [complete installation and usage guide](https://github.com/Moealbunni/film-space#readme). Installation from Windows requires signing the IPA with your Apple account. The earlier iPhone build has been installed; this update still needs a physical-device check.
 
 ## Using Windows
 
@@ -32,7 +32,7 @@ The updated iPhone app records MP4 with microphone audio to Photos. Windows reco
 
 ## Blender camera path
 
-Open Blender's Scripting workspace. Open **blender_import_path.py**, set **PATH_FILE** to the exported camera JSON, and run it. It creates an animated camera with position, rotation, and lens keyframes at 30 fps, converting Y-up coordinates to Blender's Z-up coordinates. The script was syntax checked; it has not been tested inside Blender in this session.
+Open Blender's Scripting workspace. Open **blender_import_path.py**, set **PATH_FILE** to the exported camera JSON, and run it. It creates an animated camera with position, rotation, and lens keyframes at the exported frame rate (60 fps for new recordings), converting Y-up coordinates to Blender's Z-up coordinates. The script was syntax checked; it has not been tested inside Blender in this session.
 
 ## Edit and rebuild from Windows
 
@@ -68,7 +68,7 @@ To rebuild the iPhone app, open [the iPhone build workflow](https://github.com/M
 
 ## Connect iPhone and Windows on Wi-Fi
 
-1. Install Windows **0.4.0** and iPhone **1.3**. Put both devices on the same private Wi-Fi network and keep both apps open.
+1. Install Windows **0.4.1** and iPhone **1.3**. Put both devices on the same private Wi-Fi network and keep both apps open.
 2. On Windows, expand **Connect iPhone**, then click **Start pairing**. If Windows asks, allow Film Space on **Private networks**. A QR code appears. If multiple addresses appear, choose your Wi-Fi adapter's address.
 3. On iPhone, tap **Desktop link → Scan desktop QR**. Scan the code displayed on Windows and allow **Local Network** access. You can also paste the pairing address and tap Connect.
 4. Tap **Done**, then choose **Camera** on iPhone. On Windows, click **Live Monitor**. You see the actual rendered iPhone camera view, plus its recording status. Click **Back to desktop editor** to close the monitor.
@@ -98,4 +98,10 @@ Run `node --test phone-link.test.cjs` for authorization, scene validation, JPEG 
 
 ## iPhone 1.3 update
 
-The [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.0) adds a persistent renderer for mode switching, a scrollable control panel, pinch/tap/hold zoom in Edit and Camera, a recording joystick, 0.1–10× physical movement, smoothing and a 60 fps recording target. Actual phone frame rate depends on device performance. Windows 0.4.0 remains compatible; the Windows executable is unchanged. See the [full phone guide](https://github.com/Moealbunni/film-space#iphone-13-smooth-camera-and-recording-controls).
+The [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.0) adds a persistent renderer for mode switching, a scrollable control panel, pinch/tap/hold zoom in Edit and Camera, a recording joystick, 0.1–10× physical movement, smoothing and a 60 fps recording target. Actual phone frame rate depends on device performance. Windows 0.4.1 also targets 60 fps and exports 60 fps Blender camera paths; Windows 0.4.0 remains compatible with the phone link. See the [full phone guide](https://github.com/Moealbunni/film-space#iphone-13-smooth-camera-and-recording-controls).
+
+## Windows 0.4.1 recording update
+
+Recording requests 60 fps from the scene canvas, with a 12 Mbps video bitrate. Actual saved frame rate depends on scene complexity, GPU performance and display/render cadence. Camera-path exports specify 60 fps for Blender. The live phone monitor remains a lower-resolution preview at about 6 fps; it does not set the phone MP4 frame rate.
+
+Windows 0.4.1 was checked in Electron: object editing, axis locks, save/load, camera movement and MP4 export passed. The capture track reported 60 fps and camera-path JSON declared 60 fps. This verifies configuration and export, not a guaranteed sustained frame rate on every computer.

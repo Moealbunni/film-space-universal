@@ -68,6 +68,14 @@ app.whenReady().then(async () => {
       $('#resetCamera').click();await tick();
       return {objectScaleLock:true,lift:true,resets:true,cameraYawLock45:true,modeSwitch:true};
     })()`);
+    await window.webContents.executeJavaScript(`(() => {
+      const capture = HTMLCanvasElement.prototype.captureStream;
+      HTMLCanvasElement.prototype.captureStream = function(fps) {
+        const stream = capture.call(this, fps);
+        window.captureSettings = stream.getVideoTracks()[0].getSettings();
+        return stream;
+      };
+    })()`);
     await window.webContents.executeJavaScript("document.querySelector('#record').click(); window.dispatchEvent(new KeyboardEvent('keydown', {key:'w'}));");
     await delay(1400);
     await window.webContents.executeJavaScript("window.dispatchEvent(new KeyboardEvent('keyup', {key:'w'})); document.querySelector('#record').click();");
@@ -78,12 +86,15 @@ app.whenReady().then(async () => {
     fs.writeFileSync(path.join(output, 'windows-studio.png'), capture.toPNG());
     const pathFile = path.join(output, 'film-space-camera-path.json');
     const data = JSON.parse(fs.readFileSync(pathFile, 'utf8'));
+    if (data.fps !== 60) throw new Error('Camera export frame rate is not 60');
+    const captureSettings = await window.webContents.executeJavaScript('window.captureSettings');
+    if (captureSettings.frameRate !== 60) throw new Error('Capture track did not accept 60 fps: ' + JSON.stringify(captureSettings));
     if (data.samples.length < 10) throw new Error('Too few camera samples');
     if (JSON.stringify(data.samples[0].position) === JSON.stringify(data.samples.at(-1).position)) throw new Error('Camera did not move');
     const video = downloads.find(d => /\.(mp4|webm)$/.test(d.target));
     if (!video || video.state !== 'completed' || fs.statSync(video.target).size < 1000) throw new Error('Video export failed');
     if (errors.length) throw new Error(errors.join('\n'));
-    const result = { passed: true, counts, editing, axisChecks, samples: data.samples.length, downloads };
+    const result = { passed: true, counts, editing, axisChecks, captureSettings, samples: data.samples.length, downloads };
     fs.writeFileSync(path.join(output, 'result.json'), JSON.stringify(result, null, 2));
     console.log(JSON.stringify(result, null, 2));
     app.exit(0);
