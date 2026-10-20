@@ -510,7 +510,7 @@ $link('startLink').onclick=async()=>{try{
 }catch(e){$link('linkStatus').textContent=e.message;}};
 $link('stopLink').onclick=async()=>{await window.filmLink?.stop();$link('startLink').disabled=false;$link('stopLink').disabled=true;$link('pairQr').hidden=true;$link('pairText').hidden=true;$link('linkAddress').hidden=true;$link('phoneMonitor').hidden=true;$link('phoneImage').removeAttribute('src');$link('linkStatus').textContent='Sharing stopped; previous QR is invalid.';};
 $link('preparePhone').onclick=async()=>{try{if(!window.filmLink)throw Error('Open the desktop app.');await window.filmLink.prepare(linkScene());$link('linkStatus').textContent='Scene ready. On iPhone tap Load desktop scene.';}catch(e){$link('linkStatus').textContent=e.message;}};
-$link('receivePhone').onclick=async()=>{try{const data=await window.filmLink?.receive();if(!data)throw Error('On iPhone tap Send scene to desktop first.');receiveLinkScene(data);$link('linkStatus').textContent='Phone scene loaded in desktop editor.';}catch(e){$link('linkStatus').textContent=e.message;}};
+$link('receivePhone').onclick=async()=>{try{const data=await window.filmLink?.receive();if(!data)throw Error('On iPhone tap Send scene to desktop first.');receiveLinkScene(data);setMode("edit");$link("phoneMonitor").hidden=true;$link('linkStatus').textContent='Phone scene loaded — edit it here, then Prepare scene for phone to send your changes back.';}catch(e){$link('linkStatus').textContent=e.message;}};
 window.filmLink?.onEvent((type,data)=>{
  if(type==='show-monitor')$link('showPhone').click();
  if(type==='frame'){lastPhoneFrame=performance.now();$link('phoneImage').src=data.image;$link('monitorStatus').textContent=data.recording?'● iPhone is recording':'iPhone live camera';}

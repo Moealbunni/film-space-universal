@@ -28378,7 +28378,9 @@ $link("receivePhone").onclick = async () => {
     const data = await window.filmLink?.receive();
     if (!data) throw Error("On iPhone tap Send scene to desktop first.");
     receiveLinkScene(data);
-    $link("linkStatus").textContent = "Phone scene loaded in desktop editor.";
+    setMode("edit");
+    $link("phoneMonitor").hidden = true;
+    $link("linkStatus").textContent = "Phone scene loaded \u2014 edit it here, then Prepare scene for phone to send your changes back.";
   } catch (e) {
     $link("linkStatus").textContent = e.message;
   }
