@@ -8,7 +8,7 @@ Download [Windows 0.4.0 from Releases](https://github.com/Moealbunni/film-space-
 
 ## iPhone editor
 
-The updated native iPhone app includes object presets, names/colors, transforms, local scene saving, floor sizing, a lock/unlock toggle and physical ARKit camera tracking. Get the [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.2.0) and follow its [complete installation and usage guide](https://github.com/Moealbunni/film-space#readme). Installation from Windows requires signing the IPA with your Apple account. Physical installation and phone testing remain deferred.
+The updated native iPhone app includes object presets, names/colors, transforms, local scene saving, floor sizing, a lock/unlock toggle and physical ARKit camera tracking. Get the [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.0) and follow its [complete installation and usage guide](https://github.com/Moealbunni/film-space#readme). Installation from Windows requires signing the IPA with your Apple account. Physical installation and phone testing remain deferred.
 
 ## Using Windows
 
@@ -68,7 +68,7 @@ To rebuild the iPhone app, open [the iPhone build workflow](https://github.com/M
 
 ## Connect iPhone and Windows on Wi-Fi
 
-1. Install Windows **0.4.0** and iPhone **1.2**. Put both devices on the same private Wi-Fi network and keep both apps open.
+1. Install Windows **0.4.0** and iPhone **1.3**. Put both devices on the same private Wi-Fi network and keep both apps open.
 2. On Windows, expand **Connect iPhone**, then click **Start pairing**. If Windows asks, allow Film Space on **Private networks**. A QR code appears. If multiple addresses appear, choose your Wi-Fi adapter's address.
 3. On iPhone, tap **Desktop link → Scan desktop QR**. Scan the code displayed on Windows and allow **Local Network** access. You can also paste the pairing address and tap Connect.
 4. Tap **Done**, then choose **Camera** on iPhone. On Windows, click **Live Monitor**. You see the actual rendered iPhone camera view, plus its recording status. Click **Back to desktop editor** to close the monitor.
@@ -95,3 +95,7 @@ The connection uses a random session token and direct local HTTP, with no cloud 
 
 Run `node --test phone-link.test.cjs` for authorization, scene validation, JPEG handling, transfer and token rotation checks. Run `npm run build`, then `.\node_modules\electron\dist\electron.exe monitor-smoke.cjs` for the real Electron preload/IPC, QR pairing, received preview, recording indicator, monitor toggle and scene import checks. `smoke.cjs` tests the existing editor, axis locks, persistence and MP4 export. The phone simulator tests include pairing address validation and scene serialization. A simulated sender exercises Windows preview tests; a physical iPhone session is still pending.
 
+
+## iPhone 1.3 update
+
+The [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.0) adds a persistent renderer for mode switching, a scrollable control panel, pinch/tap/hold zoom in Edit and Camera, a recording joystick, 0.1–10× physical movement, smoothing and a 60 fps recording target. Actual phone frame rate depends on device performance. Windows 0.4.0 remains compatible; the Windows executable is unchanged. See the [full phone guide](https://github.com/Moealbunni/film-space#iphone-13-smooth-camera-and-recording-controls).
