@@ -487,10 +487,11 @@ requestAnimationFrame(frame);
 
 // Pairing and preview stay outside the render canvas and cannot enter desktop exports.
 const $link=id=>document.querySelector('#'+id);
-let lastPhoneFrame=0;
+let lastPhoneFrame=0, phoneConnected=false;
+function previewWaitingStatus(){return phoneConnected?'Connected, but no preview received — close the iPhone menu and keep its scene visible.':'Waiting for iPhone — connect using the pairing QR.';}
 for(const b of document.querySelectorAll('[data-speed]'))b.onclick=()=>{$link('speed').value=b.dataset.speed;$link('sensitivity').value=b.dataset.speed==='0.25'?'0.35':'0.7';status(b.textContent+' camera speed');};
 $link('cameraShortcut').onclick=()=>{$link('cameraPanel').open=true;$link('cameraPanel').scrollIntoView({block:'start',behavior:'smooth'});};
-$link('showPhone').onclick=()=>{$link('phoneMonitor').hidden=false;};
+$link('showPhone').onclick=()=>{$link('phoneMonitor').hidden=false;if(performance.now()-lastPhoneFrame>3000)$link('monitorStatus').textContent=previewWaitingStatus();};
 $link('hidePhone').onclick=()=>{$link('phoneMonitor').hidden=true;};
 function linkScene(){return {format:'film-space-link-v1',floorSize:Number($link('floorSize').value),lens:Number($link('lens').value),objects:people.map(p=>{const e=new THREE.Euler().setFromQuaternion(p.quaternion,'YXZ');return {type:p.userData.type,name:p.name,color:'#'+p.userData.clothing.color.getHexString(),position:p.position.toArray(),rotation:[e.x,e.y,e.z],scale:p.scale.toArray()};})};}
 function receiveLinkScene(data){
@@ -511,8 +512,9 @@ $link('stopLink').onclick=async()=>{await window.filmLink?.stop();$link('startLi
 $link('preparePhone').onclick=async()=>{try{if(!window.filmLink)throw Error('Open the desktop app.');await window.filmLink.prepare(linkScene());$link('linkStatus').textContent='Scene ready. On iPhone tap Load desktop scene.';}catch(e){$link('linkStatus').textContent=e.message;}};
 $link('receivePhone').onclick=async()=>{try{const data=await window.filmLink?.receive();if(!data)throw Error('On iPhone tap Send scene to desktop first.');receiveLinkScene(data);$link('linkStatus').textContent='Phone scene loaded in desktop editor.';}catch(e){$link('linkStatus').textContent=e.message;}};
 window.filmLink?.onEvent((type,data)=>{
+ if(type==='show-monitor')$link('showPhone').click();
  if(type==='frame'){lastPhoneFrame=performance.now();$link('phoneImage').src=data.image;$link('monitorStatus').textContent=data.recording?'● iPhone is recording':'iPhone live camera';}
- if(type==='status'){if(!$link('stopLink').disabled)$link('linkStatus').textContent=data.connected?'iPhone connected on local Wi-Fi':'Waiting for iPhone. Check same Wi-Fi and Private-network firewall access.';}
+ if(type==='status'){phoneConnected=data.connected;if(!$link('stopLink').disabled)$link('linkStatus').textContent=data.connected?'iPhone connected on local Wi-Fi':'Waiting for iPhone. Check same Wi-Fi and Private-network firewall access.';}
  if(type==='scene-ready')$link('linkStatus').textContent='Phone sent a scene. Tap Load received phone scene to replace the desktop scene.';
 });
-setInterval(()=>{if(performance.now()-lastPhoneFrame>3000)$link('monitorStatus').textContent='Preview paused — open Camera mode on the connected iPhone';},1000);
+setInterval(()=>{if(performance.now()-lastPhoneFrame>3000)$link('monitorStatus').textContent=previewWaitingStatus();},1000);

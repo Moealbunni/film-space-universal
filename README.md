@@ -4,11 +4,11 @@ This repository contains the Windows desktop studio. The iPhone app is built sep
 
 ## Windows installation
 
-Download [Windows 0.4.1 from Releases](https://github.com/Moealbunni/film-space-universal/releases/tag/v0.4.1), then run **Film-Space-Desktop-0.4.1-Windows.exe**. It is a portable 64-bit Windows app. The packaged app needs no Node.js installation, Google account, AI credits, or internet connection. It has no paid publisher certificate, so Windows may display a publisher warning.
+Download [Windows 0.4.2 from Releases](https://github.com/Moealbunni/film-space-universal/releases/tag/v0.4.2), then run **Film-Space-Desktop-0.4.2-Windows.exe**. It is a portable 64-bit Windows app. The packaged app needs no Node.js installation, Google account, AI credits, or internet connection. It has no paid publisher certificate, so Windows may display a publisher warning.
 
 ## iPhone editor
 
-The updated native iPhone app includes object presets, names/colors, transforms, local scene saving, floor sizing, a lock/unlock toggle and physical ARKit camera tracking. Get the [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.0) and follow its [complete installation and usage guide](https://github.com/Moealbunni/film-space#readme). Installation from Windows requires signing the IPA with your Apple account. The earlier iPhone build has been installed; this update still needs a physical-device check.
+The updated native iPhone app includes object presets, names/colors, transforms, local scene saving, floor sizing, a lock/unlock toggle and physical ARKit camera tracking. Get the [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.1) and follow its [complete installation and usage guide](https://github.com/Moealbunni/film-space#readme). Installation from Windows requires signing the IPA with your Apple account. The earlier iPhone build has been installed; this update still needs a physical-device check.
 
 ## Using Windows
 
@@ -68,7 +68,7 @@ To rebuild the iPhone app, open [the iPhone build workflow](https://github.com/M
 
 ## Connect iPhone and Windows on Wi-Fi
 
-1. Install Windows **0.4.1** and iPhone **1.3**. Put both devices on the same private Wi-Fi network and keep both apps open.
+1. Install Windows **0.4.2** and iPhone **1.3.1**. Put both devices on the same private Wi-Fi network and keep both apps open.
 2. On Windows, expand **Connect iPhone**, then click **Start pairing**. If Windows asks, allow Film Space on **Private networks**. A QR code appears. If multiple addresses appear, choose your Wi-Fi adapter's address.
 3. On iPhone, tap **Desktop link → Scan desktop QR**. Scan the code displayed on Windows and allow **Local Network** access. You can also paste the pairing address and tap Connect.
 4. Tap **Done**, then choose **Camera** on iPhone. On Windows, click **Live Monitor**. You see the actual rendered iPhone camera view, plus its recording status. Click **Back to desktop editor** to close the monitor.
@@ -98,10 +98,22 @@ Run `node --test phone-link.test.cjs` for authorization, scene validation, JPEG 
 
 ## iPhone 1.3 update
 
-The [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.0) adds a persistent renderer for mode switching, a scrollable control panel, pinch/tap/hold zoom in Edit and Camera, a recording joystick, 0.1–10× physical movement, smoothing and a 60 fps recording target. Actual phone frame rate depends on device performance. Windows 0.4.1 also targets 60 fps and exports 60 fps Blender camera paths; Windows 0.4.0 remains compatible with the phone link. See the [full phone guide](https://github.com/Moealbunni/film-space#iphone-13-smooth-camera-and-recording-controls).
+The [iPhone release](https://github.com/Moealbunni/film-space/releases/tag/iphone-v1.3.1) adds a persistent renderer for mode switching, a scrollable control panel, pinch/tap/hold zoom in Edit and Camera, a recording joystick, 0.1–10× physical movement, smoothing and a 60 fps recording target. Actual phone frame rate depends on device performance. Windows 0.4.1 also targets 60 fps and exports 60 fps Blender camera paths; Windows 0.4.0 remains compatible with the phone link. See the [full phone guide](https://github.com/Moealbunni/film-space#iphone-13-smooth-camera-and-recording-controls).
 
 ## Windows 0.4.1 recording update
 
 Recording requests 60 fps from the scene canvas, with a 12 Mbps video bitrate. Actual saved frame rate depends on scene complexity, GPU performance and display/render cadence. Camera-path exports specify 60 fps for Blender. The live phone monitor remains a lower-resolution preview at about 6 fps; it does not set the phone MP4 frame rate.
 
 Windows 0.4.1 was checked in Electron: object editing, axis locks, save/load, camera movement and MP4 export passed. The capture track reported 60 fps and camera-path JSON declared 60 fps. This verifies configuration and export, not a guaranteed sustained frame rate on every computer.
+
+## Live monitor and tracking fix — Windows 0.4.2 / iPhone 1.3.1
+
+1. Close the previous Windows app and open 0.4.2. Install iPhone 1.3.1 over the existing app using the same signing account.
+2. Start pairing on Windows and scan its new QR on the phone.
+3. On the phone, tap **Show live view on Windows**. This closes the phone menu, enters Camera mode and opens the Windows monitor. You can also press **Live Monitor** on Windows yourself.
+4. Move the phone. Windows should show the phone's scene, not its own editable scene. Preview now runs in both phone Edit and Camera modes.
+5. If the phone's scene stays still, use **Controls → Restart tracking**. Check **Unlock viewpoint** and **Axis locks / Reset** if movement is intentionally locked. Camera tracking needs visible detail and adequate light.
+
+The QR scanner now releases the physical camera before returning the scan result, and AR tracking is restarted after scanning. A phone preview status distinguishes successful image uploads from a pairing-only connection. Windows displays a specific waiting message when connected without frames.
+
+The Windows integration check exercised authenticated pairing, JPEG display, the phone-triggered monitor opening, recording indicator, scene transfer and disconnect. Physical iPhone tracking and Wi-Fi viewing still require a check on the user's phone after installation.

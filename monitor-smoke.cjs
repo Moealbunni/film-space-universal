@@ -10,7 +10,7 @@ app.on('browser-window-created',(_event,win)=>{
  const request=(p,body,extra={})=>fetch(`http://127.0.0.1:${port}/${p}`,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+token,...extra},body});
  const scene=await (await request('scene')).json();assert.equal(scene.objects.length,2);
  const image=await win.webContents.capturePage();assert.equal((await request('frame',image.toJPEG(70),{'X-Film-Recording':'1'})).status,200);
- await js("document.querySelector('#showPhone').click()");await delay(300);
+ assert.equal((await request('monitor',Buffer.alloc(0))).status,200);await delay(300);
  assert.equal(await js("document.querySelector('#phoneMonitor').hidden"),false);
  assert.ok(await js("document.querySelector('#phoneImage').naturalWidth>0"));
  assert.equal(await js("document.querySelector('#monitorStatus').textContent"),'● iPhone is recording');
@@ -21,7 +21,7 @@ app.on('browser-window-created',(_event,win)=>{
  assert.ok(await js("document.querySelector('#objects').textContent.includes('Transferred car')"));
  await js("document.querySelector('#stopLink').click()");await delay(100);
  assert.equal(await js("document.querySelector('#pairQr').hidden"),true);
- fs.writeFileSync('test-output/monitor-result.json',JSON.stringify({passed:true,checks:['preload pairing','scene preparation','JPEG display','recording indicator','monitor toggle','record target protection','phone scene import','disconnect']}));app.exit(0);
+ fs.writeFileSync('test-output/monitor-result.json',JSON.stringify({passed:true,checks:['preload pairing','scene preparation','JPEG display','recording indicator','phone-triggered monitor opening','record target protection','phone scene import','disconnect']}));app.exit(0);
  }catch(e){fs.writeFileSync('test-output/monitor-result.json',JSON.stringify({passed:false,error:e.stack}));app.exit(1);}
  });
 });

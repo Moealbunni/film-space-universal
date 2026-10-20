@@ -31,6 +31,7 @@ class PhoneLink {
   const authBytes=Buffer.from(auth), expectedBytes=Buffer.from(expected);
   if(req.headers.origin || authBytes.length!==expectedBytes.length || !crypto.timingSafeEqual(authBytes,expectedBytes)){reply(401,{error:'Pairing required'});return;}
   if(req.method==='GET'&&req.url==='/status'){this.lastSeen=Date.now();reply(200,{ok:true,hasScene:!!this.scene});return;}
+  if(req.method==='POST'&&req.url==='/monitor'){this.lastSeen=Date.now();this.onEvent('show-monitor',{});reply(200,{ok:true});return;}
   if(req.method==='GET'&&req.url==='/scene'){this.lastSeen=Date.now();reply(this.scene?200:404,this.scene||{error:'Prepare a scene on Windows first'});return;}
   if(req.method!=='POST'||!['/frame','/phone-scene'].includes(req.url)){reply(404,{error:'Unknown endpoint'});return;}
   const chunks=[];let size=0,failed=false;

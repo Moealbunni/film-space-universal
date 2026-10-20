@@ -28286,6 +28286,10 @@ function frame(now) {
 requestAnimationFrame(frame);
 var $link = (id) => document.querySelector("#" + id);
 var lastPhoneFrame = 0;
+var phoneConnected = false;
+function previewWaitingStatus() {
+  return phoneConnected ? "Connected, but no preview received \u2014 close the iPhone menu and keep its scene visible." : "Waiting for iPhone \u2014 connect using the pairing QR.";
+}
 for (const b of document.querySelectorAll("[data-speed]")) b.onclick = () => {
   $link("speed").value = b.dataset.speed;
   $link("sensitivity").value = b.dataset.speed === "0.25" ? "0.35" : "0.7";
@@ -28297,6 +28301,7 @@ $link("cameraShortcut").onclick = () => {
 };
 $link("showPhone").onclick = () => {
   $link("phoneMonitor").hidden = false;
+  if (performance.now() - lastPhoneFrame > 3e3) $link("monitorStatus").textContent = previewWaitingStatus();
 };
 $link("hidePhone").onclick = () => {
   $link("phoneMonitor").hidden = true;
@@ -28379,18 +28384,20 @@ $link("receivePhone").onclick = async () => {
   }
 };
 window.filmLink?.onEvent((type, data) => {
+  if (type === "show-monitor") $link("showPhone").click();
   if (type === "frame") {
     lastPhoneFrame = performance.now();
     $link("phoneImage").src = data.image;
     $link("monitorStatus").textContent = data.recording ? "\u25CF iPhone is recording" : "iPhone live camera";
   }
   if (type === "status") {
+    phoneConnected = data.connected;
     if (!$link("stopLink").disabled) $link("linkStatus").textContent = data.connected ? "iPhone connected on local Wi-Fi" : "Waiting for iPhone. Check same Wi-Fi and Private-network firewall access.";
   }
   if (type === "scene-ready") $link("linkStatus").textContent = "Phone sent a scene. Tap Load received phone scene to replace the desktop scene.";
 });
 setInterval(() => {
-  if (performance.now() - lastPhoneFrame > 3e3) $link("monitorStatus").textContent = "Preview paused \u2014 open Camera mode on the connected iPhone";
+  if (performance.now() - lastPhoneFrame > 3e3) $link("monitorStatus").textContent = previewWaitingStatus();
 }, 1e3);
 /*! Bundled license information:
 
